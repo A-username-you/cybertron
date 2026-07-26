@@ -1,0 +1,28 @@
+{
+  "name": "runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cybertron": "./dist/bin.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "cli": "tsx src/bin.ts",
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/bin.js', 0o755)\""
+  },
+  "dependencies": {
+    "@cybertron/shared": "*",
+    "ws": "^8.18.0",
+    "ink": "^5.0.1",
+    "react": "^18.3.1",
+    "electron": "^31.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.10",
+    "@types/react": "^18.3.3",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "cybertron",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Cybertron — red/blue-team cybersecurity agent, one runtime, packaged for Windows/macOS/Linux.",
+  "workspaces": [
+    "shared",
+    "runtime",
+    "electron",
+    "app"
+  ],
+  "scripts": {
+    "dev:runtime": "npm run build --workspace=@cybertron/shared && npm run dev --workspace=runtime",
+    "dev:electron": "npm run dev --workspace=electron",
+    "cli": "npm run cli --workspace=runtime --",
+    "build": "npm run build --workspace=@cybertron/shared && npm run build --workspaces --if-present",
+    "dist:win": "npm run build && npm run dist:win --workspace=electron",
+    "dist:mac": "npm run build && npm run dist:mac --workspace=electron",
+    "dist:linux": "npm run build && npm run dist:linux --workspace=electron"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
