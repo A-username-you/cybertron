@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""
+Cybertron Report Generator
+==========================
+Generates professional vulnerability reports for bug bounty platforms.
+
+Supports:
+- HackerOne report format
+- Markdown export
+- PDF export (via pandoc + wkhtmltopdf)
+- JSON structured export
+- CVSS scoring
+- Proof-of-concept generation
+- Screenshot inclusion
+"""
+import json
+import os
+import subprocess
+import time
+from pathlib import Path
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
+
+REPORTS_DIR = Path("/app/reports")
+
+
+@dataclass
+class Vulnerability:
+    title: str
+    severity: str  # critical, high, medium, low, info
+    cvss_score: float
+    cvss_vector: str
+    category: str  # xss, sqli, idor, ssrf, rce, lfi, csrf, etc.
+    description: str
+    impact: str
+    steps: List[str]
+    poc: str = ""
+    screenshots: List[str] = field(default_factory=list)
+    affected_urls: List[str] = field(default_factory=list)
+    remediation: str = ""
+    references: List[str] = field(default_factory=list)
+    discovered_at: str = ""
+    reporter: str = "Cybertron Agent"
+
+
+@dataclass
+class Report:
+    program_name: str
+    program_handle: str
+    platform: str  # hackerone, bugcrowd, intigriti
+    title: str
+    summary: str
+    vulnerabilities: List[Vulnerability]
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    generated_at: str = ""
+
+
+class ReportGenerator:
+    def __init__(self):
+        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    def _now(self) -> str:
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def create_vulnerability(self, **kwargs) -> Vulnerability:
+        vuln = Vulnerability(discovered_at=self._now(), **kwargs)
+        return vuln
+
+    def generate_markdown(self, report: Report) -> str:
+        """Generate a full Markdown report."""
+        lines = [
+            f"# Bug Bounty Report: {report.title}",
+            "",
+            f"**Program:** {report.program_name}",
+            f"**Platform:** {report.platform}",
+            f"**Generated:** {report.generated_at or self._now()}",
+            f"**Reporter:** Cybertron Agent",
+            "",
+            "---",
+            "",
+            "## Executive Summary",
+            "",
+            report.summary,
+            "",
+            f"**Total Vulnerabilities:** {len(report.vulnerabilities)}",
+            f"**Critical/High:** {sum(1 for v in report.vulnerabilities if v.severity in ['critical', 'high'])}",
+            "",
+            "---",
+            "",
+        ]
+
+        for i, vuln in enumerate(report.vulnerabilities, 1):
+            lines.extend([
+                f"## Vulnerability {i}: {vuln.title}",
+                "",
+                f"**Severity:** {vuln.severity.upper()} (CVSS: {vuln.cvss_score})",
+                f"**Category:** {vuln.category}",
+                f"**Discovered:** {vuln.discovered_at}",
+                "",
+                "### Description",
+                "",
+                vuln.description,
+                "",
+                "### Impact",
+                "",
+                vuln.impact,
+                "",
+                "### Steps to Reproduce",
+                "",
+            ])
+            for step_num, step in enumerate(vuln.steps, 1):
+                lines.append(f"{step_num}. {step}")
+            lines.append("")
+
+            if vuln.poc:
+                lines.extend([
+                    "### Proof of Concept",
+                    "",
+                    "```",
+                    vuln.poc,
+                    "```",
+                    "",
+                ])
+
+            if vuln.affected_urls:
+                lines.extend([
+                    "### Affected URLs",
+                    "",
+                ])
+                for url in vuln.affected_urls:
+                    lines.append(f"- `{url}`")
+                lines.append("")
+
+            if vuln.screenshots:
+                lines.extend([
+                    "### Evidence",
+                    "",
+                ])
+                for screenshot in vuln.screenshots:
+                    lines.append(f"![Evidence]({screenshot})")
+                lines.append("")
+
+            if vuln.remediation:
+                lines.extend([
+                    "### Remediation",
+                    "",
+                    vuln.remediation,
+                    "",
+                ])
+
+            if vuln.references:
+                lines.extend([
+                    "### References",
+                    "",
+                ])
+                for ref in vuln.references:
+                    lines.append(f"- {ref}")
+                lines.append("")
+
+            lines.append("---")
+            lines.append("")
+
+        lines.extend([
+            "## Methodology",
+            "",
+            "This report was generated by the Cybertron automated bug bounty agent.",
+            "The following tools and techniques were employed:",
+            "",
+            "- **Reconnaissance:** subfinder, amass, assetfinder, dnsx",
+            "- **Discovery:** httpx, naabu, gowitness",
+            "- **Content Analysis:** gau, waybackurls, hakrawler",
+            "- **Vulnerability Scanning:** nuclei, dalfox, sqlmap",
+            "- **Secret Detection:** trufflehog, gitleaks",
+            "",
+            "---",
+            "",
+            "*Report generated by Cybertron Agent*",
+        ])
+
+        return "\n".join(lines)
+
+    def generate_hackerone_format(self, report: Report) -> Dict[str, Any]:
+        """Generate HackerOne API-compatible report structure."""
+        h1_reports = []
+        for vuln in report.vulnerabilities:
+            h1_reports.append({
+                "data": {
+                    "type": "report",
+                    "attributes": {
+                        "title": vuln.title,
+                        "vulnerability_types": [vuln.category],
+                        "severity_rating": vuln.severity,
+                    },
+                    "relationships": {
+                        "program": {
+                            "data": {
+                                "type": "program",
+                                "id": report.program_handle,
+                            }
+                        }
+                    }
+                },
+                "message": self._build_h1_message(vuln),
+            })
+        return {
+            "program": report.program_handle,
+            "reports": h1_reports,
+            "metadata": report.metadata,
+        }
+
+    def _build_h1_message(self, vuln: Vulnerability) -> str:
+        """Build the message body for HackerOne."""
+        lines = [
+            f"## Summary\n\n{vuln.description}",
+            f"\n## Impact\n\n{vuln.impact}",
+            "\n## Steps to Reproduce\n\n",
+        ]
+        for i, step in enumerate(vuln.steps, 1):
+            lines.append(f"{i}. {step}")
+        if vuln.poc:
+            lines.append(f"\n## Proof of Concept\n\n```\n{vuln.poc}\n```")
+        if vuln.remediation:
+            lines.append(f"\n## Remediation\n\n{vuln.remediation}")
+        return "\n".join(lines)
+
+    def generate_json(self, report: Report) -> str:
+        """Generate JSON export."""
+        data = {
+            "program": report.program_name,
+            "handle": report.program_handle,
+            "platform": report.platform,
+            "title": report.title,
+            "summary": report.summary,
+            "generated_at": report.generated_at or self._now(),
+            "vulnerabilities": [asdict(v) for v in report.vulnerabilities],
+            "metadata": report.metadata,
+        }
+        return json.dumps(data, indent=2, default=str)
+
+    def save_report(self, report: Report, formats: List[str] = None) -> Dict[str, Path]:
+        """Save report in multiple formats."""
+        formats = formats or ["markdown", "json"]
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        base_name = f"{report.program_handle}_{timestamp}"
+        out_dir = REPORTS_DIR / base_name
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        saved = {}
+
+        if "markdown" in formats:
+            md_path = out_dir / "report.md"
+            md_path.write_text(self.generate_markdown(report))
+            saved["markdown"] = md_path
+
+        if "json" in formats:
+            json_path = out_dir / "report.json"
+            json_path.write_text(self.generate_json(report))
+            saved["json"] = json_path
+
+        if "hackerone" in formats:
+            h1_path = out_dir / "hackerone.json"
+            h1_path.write_text(json.dumps(self.generate_hackerone_format(report), indent=2))
+            saved["hackerone"] = h1_path
+
+        if "pdf" in formats:
+            pdf_path = out_dir / "report.pdf"
+            md_path = saved.get("markdown")
+            if md_path:
+                try:
+                    subprocess.run(
+                        ["pandoc", str(md_path), "-o", str(pdf_path), "--pdf-engine=xelatex"],
+                        check=True,
+                        capture_output=True,
+                        timeout=60,
+                    )
+                    saved["pdf"] = pdf_path
+                except Exception:
+                    pass  # PDF generation is optional
+
+        return saved
+
+    def create_from_nuclei(self, nuclei_results: List[Dict[str, Any]],
+                           program_name: str, program_handle: str) -> Report:
+        """Auto-generate a report from nuclei scan results."""
+        vulns = []
+        for result in nuclei_results:
+            info = result.get("info", {})
+            severity = info.get("severity", "info")
+            cvss_map = {"critical": 9.5, "high": 8.0, "medium": 5.5, "low": 3.0, "info": 0.0}
+            cvss = cvss_map.get(severity, 5.0)
+
+            vuln = self.create_vulnerability(
+                title=info.get("name", "Unknown Vulnerability"),
+                severity=severity,
+                cvss_score=cvss,
+                cvss_vector=f"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H" if severity == "critical" else "",
+                category=info.get("tags", ["unknown"])[0] if info.get("tags") else "unknown",
+                description=info.get("description", "No description available."),
+                impact=f"This {severity} severity vulnerability was detected on the target.",
+                steps=[
+                    f"Navigate to {result.get('matched-at', 'the affected endpoint')}",
+                    "Observe the vulnerability behavior as described",
+                ],
+                affected_urls=[result.get("matched-at", "")],
+                remediation="Apply the vendor-recommended patch or mitigation.",
+            )
+            vulns.append(vuln)
+
+        return Report(
+            program_name=program_name,
+            program_handle=program_handle,
+            platform="hackerone",
+            title=f"Bug Bounty Report for {program_name}",
+            summary=f"Automated reconnaissance and vulnerability assessment of {program_name} identified {len(vulns)} security issues.",
+            vulnerabilities=vulns,
+            generated_at=self._now(),
+        )
+
+
+# ─── Singleton ───────────────────────────────────────────────────────────────
+_report_gen_instance: Optional[ReportGenerator] = None
+
+def get_report_generator() -> ReportGenerator:
+    global _report_gen_instance
+    if _report_gen_instance is None:
+        _report_gen_instance = ReportGenerator()
+    return _report_gen_instance
