@@ -1,0 +1,109 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cybertron"
+version = "2.0.0"
+description = "Advanced Security Automation & Reverse Engineering Framework"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Security Researcher", email = "dev@cybertron.local"}
+]
+keywords = ["security", "bug-bounty", "reverse-engineering", "pentest", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "typer>=0.9",
+    "rich>=13.0",
+    "textual>=0.41",
+    "fastapi>=0.104",
+    "uvicorn>=0.24",
+    "websockets>=12.0",
+    "aiohttp>=3.9",
+    "httpx>=0.25",
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
+    "toml>=0.10",
+    "click>=8.1",
+    "structlog>=23.0",
+    "tenacity>=8.2",
+    "cachetools>=5.3",
+    "watchdog>=3.0",
+    "capstone>=4.0",
+    "unicorn>=2.0",
+    "keystone-engine>=0.9",
+    "pefile>=2023.0",
+    "pyelftools>=0.30",
+    "macholib>=1.16",
+    "python-magic>=0.4",
+    "z3-solver>=4.12",
+    "pwntools>=4.11",
+    "boto3>=1.29",
+    "docker>=6.1",
+    "requests>=2.31",
+    "graphql-core>=3.2",
+    "grpcio>=1.59",
+    "protobuf>=4.24",
+    "scapy>=2.5",
+    "impacket>=0.11",
+    "netaddr>=0.9",
+    "androguard>=3.4",
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "cryptography>=41.0",
+    "pycryptodome>=3.19",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.1",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.7",
+    "pre-commit>=3.5",
+    "safety>=2.3",
+    "bandit>=1.7",
+]
+re = [
+    "angr>=9.2",
+    "frida-tools>=12.0",
+]
+
+[project.scripts]
+cybertron = "cybertron.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
