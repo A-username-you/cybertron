@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybertron — Agent Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════════════════════════════════
+     Hermes Agent Design System — Cybertron Web UI
+     ═══════════════════════════════════════════════════════════════════════ */
+  :root {
+    /* Hermes default skin tokens */
+    --surface-0: #14141f;
+    --surface-1: #1a1a2e;
+    --surface-2: #333355;
+    --surface-3: #444466;
+    --text-primary: #FFF8DC;
+    --text-muted: #B8860B;
+    --text-dim: #8B7355;
+    --gold: #FFD700;
+    --amber: #FFBF00;
+    --bronze: #CD7F32;
+    --teal: #4dd0e1;
+    --teal-dim: #2a8a99;
+    --error: #ef5350;
+    --ok: #4caf50;
+    --warn: #ffa726;
+    --banner-border: #CD7F32;
+    --banner-bg: #1a1a2e;
+    --banner-text: #FFF8DC;
+    --accent: #FFBF00;
+    --accent-hover: #FFD700;
+    --accent-text: #1a1a2e;
+    --chat-bg: #14141f;
+    --msg-user-bg: #1a1a35;
+    --msg-user-border: #2a2a55;
+    --msg-agent-bg: #141428;
+    --msg-agent-border: #3a2a1a;
+    --composer-bg: #1a1a2e;
+    --font-ui: 'IBM Plex Mono', monospace;
+    --font-cybertron: 'Press Start 2P', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    overflow: hidden;
+  }
+
+  /* Warm glow vignette + grain texture (from Hermes globals.css) */
+  #app::before {
+    content: "";
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(205,127,50,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 100%, rgba(77,208,225,0.04) 0%, transparent 50%);
+  }
+  #app::after {
+    content: "";
+    position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 256px 256px;
+  }
+
+  /* ═══ Auth Gate ════════════════════════════════════════════════════════ */
+  #authGate {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-0);
+  }
+  .auth-box {
+    border: 1px solid var(--banner-border); border-radius: 8px;
+    padding: 40px; max-width: 420px; width: 90%; background: var(--surface-1);
+    text-align: center; box-shadow: 0 0 40px rgba(205,127,50,0.08);
+    position: relative; z-index: 2;
+  }
+  .auth-box h1 {
+    font-family: var(--font-cybertron); font-size: 14px;
+    color: var(--gold); margin-bottom: 8px;
+    text-shadow: 0 0 12px rgba(255,215,0,0.2);
+  }
+  .auth-box .sub { color: var(--text-muted); font-size: 12px; margin-bottom: 28px; line-height: 1.6; }
+  .auth-box input {
+    width: 100%; padding: 12px 14px; background: var(--surface-0);
+    border: 1px solid var(--surface-2); border-radius: 4px;
+    color: var(--text-primary); font-family: inherit; font-size: 13px;
+    margin-bottom: 12px; outline: none;
+  }
+  .auth-box input:focus { border-color: var(--amber); box-shadow: 0 0 8px rgba(255,191,0,0.15); }
+  .auth-box input::placeholder { color: var(--text-muted); }
+  .auth-box button {
+    width: 100%; padding: 12px; background: var(--amber); color: var(--accent-text);
+    border: none; border-radius: 4px; font-family: inherit; font-weight: 600;
+    cursor: pointer; font-size: 13px; transition: all 0.15s;
+  }
+  .auth-box button:hover { background: var(--gold); box-shadow: 0 0 12px rgba(255,215,0,0.25); }
+  .auth-box button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-error { color: var(--error); font-size: 12px; margin-top: 12px; min-height: 18px; }
+  .auth-status { color: var(--text-muted); font-size: 11px; margin-top: 8px; }
+
+  /* ═══ Main App ══════════════════════════════════════════════════════════ */
+  #app { display: none; height: 100vh; flex-direction: column; position: relative; z-index: 2; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; height: 48px;
+    border-bottom: 1px solid var(--banner-border);
+    background: var(--banner-bg);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-text {
+    font-family: var(--font-cybertron); font-size: 10px;
+    color: var(--gold); letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(255,215,0,0.15);
+  }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 4px; font-size: 11px;
+    background: var(--surface-1); border: 1px solid var(--surface-2);
+    font-family: var(--font-ui);
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-dot.connected { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  .status-dot.connecting { background: var(--amber); animation: pulse 1s infinite; }
+  .status-dot.disconnected { background: var(--error); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .toggle-btn {
+    padding: 6px 12px; background: var(--surface-1); border: 1px solid var(--surface-2);
+    color: var(--text-muted); border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-size: 11px; transition: all 0.15s;
+  }
+  .toggle-btn.active { color: var(--gold); border-color: var(--amber); background: rgba(255,191,0,0.08); }
+  .toggle-btn:hover { border-color: var(--surface-3); color: var(--text-primary); }
+
+  /* Content */
+  .content { flex: 1; display: flex; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 280px; border-right: 1px solid var(--surface-2);
+    background: var(--surface-1); display: flex; flex-direction: column;
+  }
+  .sidebar-header {
+    padding: 14px 16px; border-bottom: 1px solid var(--surface-2);
+    font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--bronze); font-weight: 600; font-family: var(--font-cybertron);
+  }
+  .session-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .session-item {
+    padding: 10px 12px; border-radius: 6px; margin-bottom: 6px;
+    cursor: pointer; transition: all 0.12s; border: 1px solid transparent;
+    background: var(--surface-0);
+  }
+  .session-item:hover { background: var(--surface-2); border-color: var(--surface-3); }
+  .session-item.active { border-left: 2px solid var(--amber); }
+  .session-id { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; font-family: var(--font-ui); }
+  .session-goal { font-size: 12px; color: var(--text-primary); margin-bottom: 6px; overflow-wrap: anywhere; line-height: 1.4; }
+  .session-meta { display: flex; gap: 10px; font-size: 10px; color: var(--text-muted); font-family: var(--font-ui); }
+  .session-state {
+    padding: 1px 6px; border-radius: 3px; font-size: 9px; text-transform: uppercase;
+    font-weight: 600; letter-spacing: 0.5px;
+  }
+  .state-thinking { background: rgba(77,208,225,0.12); color: var(--teal); border: 1px solid rgba(77,208,225,0.2); }
+  .state-running_tool { background: rgba(77,208,225,0.12); color: var(--teal); border: 1px solid rgba(77,208,225,0.2); }
+  .state-done { background: rgba(76,175,80,0.12); color: var(--ok); border: 1px solid rgba(76,175,80,0.2); }
+  .state-idle { background: rgba(184,134,11,0.08); color: var(--text-muted); border: 1px solid rgba(184,134,11,0.15); }
+  .state-awaiting_approval { background: rgba(239,83,80,0.12); color: var(--error); border: 1px solid rgba(239,83,80,0.2); }
+  .state-error { background: rgba(239,83,80,0.12); color: var(--error); border: 1px solid rgba(239,83,80,0.2); }
+
+  /* Main Panel */
+  .main-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--chat-bg); position: relative; }
+
+  /* Floating State Indicator */
+  .state-float {
+    position: absolute; top: 16px; right: 24px; z-index: 10;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; background: var(--surface-1);
+    border: 1px solid var(--surface-2); border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .state-float canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+  .state-float .state-name {
+    font-family: var(--font-cybertron); font-size: 8px; color: var(--gold);
+  }
+  .state-float .state-detail {
+    font-size: 10px; color: var(--text-muted); max-width: 200px;
+  }
+
+  /* Chat Transcript (Hermes-style) */
+  .chat-transcript {
+    flex: 1; overflow-y: auto; padding: 24px 32px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .chat-transcript::-webkit-scrollbar { width: 6px; }
+  .chat-transcript::-webkit-scrollbar-track { background: transparent; }
+  .chat-transcript::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 3px; }
+
+  .chat-msg {
+    max-width: 85%; padding: 14px 18px; border-radius: 8px;
+    font-size: 13px; line-height: 1.65;
+    animation: msgIn 0.2s ease-out;
+    position: relative;
+  }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg-user {
+    align-self: flex-end;
+    background: var(--msg-user-bg);
+    border: 1px solid var(--msg-user-border);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .msg-user .msg-label { color: var(--teal); font-size: 10px; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+
+  .msg-agent {
+    align-self: flex-start;
+    background: var(--msg-agent-bg);
+    border: 1px solid var(--msg-agent-border);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .msg-agent .msg-label { color: var(--amber); font-size: 10px; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+
+  .msg-system {
+    align-self: center;
+    background: transparent;
+    border: 1px dashed var(--surface-2);
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 8px 16px;
+    max-width: 60%;
+    text-align: center;
+  }
+
+  .msg-tool {
+    align-self: flex-start;
+    background: var(--surface-1);
+    border: 1px solid rgba(205,127,50,0.25);
+    border-left: 3px solid var(--bronze);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    max-width: 90%;
+  }
+  .msg-tool .msg-label { color: var(--bronze); font-size: 10px; font-weight: 600; margin-bottom: 6px; }
+  .msg-tool pre {
+    background: var(--surface-0); padding: 8px; border-radius: 4px;
+    overflow-x: auto; font-size: 11px; color: var(--text-muted);
+    border: 1px solid var(--surface-2); margin-top: 6px; font-family: var(--font-ui);
+  }
+
+  .msg-result {
+    align-self: flex-start;
+    background: var(--msg-agent-bg);
+    border: 1px solid rgba(76,175,80,0.2);
+    border-left: 3px solid var(--ok);
+    color: var(--text-primary);
+    max-width: 90%;
+  }
+  .msg-result .msg-label { color: var(--ok); font-size: 10px; font-weight: 600; margin-bottom: 6px; }
+  .msg-result pre {
+    background: var(--surface-0); padding: 8px; border-radius: 4px;
+    overflow-x: auto; font-size: 11px; color: var(--text-muted);
+    border: 1px solid var(--surface-2); margin-top: 6px; font-family: var(--font-ui);
+  }
+
+  .msg-error {
+    align-self: flex-start;
+    background: rgba(239,83,80,0.06);
+    border: 1px solid rgba(239,83,80,0.2);
+    border-left: 3px solid var(--error);
+    color: var(--text-primary);
+  }
+  .msg-error .msg-label { color: var(--error); font-size: 10px; font-weight: 600; margin-bottom: 6px; }
+
+  .msg-time {
+    font-size: 10px; color: var(--text-muted); margin-top: 8px;
+    font-family: var(--font-ui);
+  }
+
+  /* Composer */
+  .composer {
+    display: flex; gap: 10px; padding: 14px 20px;
+    border-top: 1px solid var(--banner-border);
+    background: var(--composer-bg);
+  }
+  .composer input {
+    flex: 1; padding: 12px 14px; background: var(--surface-0);
+    border: 1px solid var(--surface-2); border-radius: 4px;
+    color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none;
+  }
+  .composer input:focus { border-color: var(--amber); box-shadow: 0 0 8px rgba(255,191,0,0.1); }
+  .composer input::placeholder { color: var(--text-muted); }
+  .composer button {
+    padding: 12px 24px; background: var(--amber); color: var(--accent-text);
+    border: none; border-radius: 4px; font-family: inherit; font-weight: 600;
+    cursor: pointer; font-size: 13px; white-space: nowrap; transition: all 0.15s;
+  }
+  .composer button:hover { background: var(--gold); box-shadow: 0 0 12px rgba(255,215,0,0.2); }
+  .composer button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Approval Modal */
+  #approvalModal {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: rgba(20,20,31,0.85); align-items: center; justify-content: center;
+  }
+  .approval-box {
+    border: 1px solid var(--error); border-radius: 8px;
+    padding: 32px; max-width: 460px; width: 90%; background: var(--surface-1);
+    box-shadow: 0 0 40px rgba(239,83,80,0.1);
+  }
+  .approval-box h3 {
+    font-family: var(--font-cybertron); font-size: 10px;
+    color: var(--error); margin-bottom: 16px;
+  }
+  .approval-box p { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; line-height: 1.5; }
+  .approval-box .tool-name { color: var(--amber); font-weight: 600; }
+  .approval-box pre {
+    background: var(--surface-0); padding: 10px; border-radius: 4px;
+    font-size: 11px; color: var(--text-primary); overflow-x: auto; margin: 12px 0;
+    border: 1px solid var(--surface-2); font-family: var(--font-ui);
+  }
+  .approval-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .approval-actions button { flex: 1; padding: 12px; border-radius: 4px;
+    font-family: inherit; font-weight: 600; cursor: pointer; font-size: 13px; border: none;
+    transition: all 0.15s;
+  }
+  .btn-approve { background: var(--ok); color: var(--surface-0); }
+  .btn-approve:hover { box-shadow: 0 0 12px rgba(76,175,80,0.3); }
+  .btn-deny { background: var(--error); color: #fff; }
+  .btn-deny:hover { box-shadow: 0 0 12px rgba(239,83,80,0.3); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { width: 220px; }
+    .chat-msg { max-width: 92%; }
+    .chat-transcript { padding: 16px; }
+  }
+  @media (max-width: 600px) {
+    .sidebar { display: none; }
+    .composer { flex-direction: column; }
+    .composer button { width: 100%; }
+    .header-right .status-pill span:not(.status-dot) { display: none; }
+    .chat-transcript { padding: 12px; }
+    .state-float { right: 8px; top: 8px; padding: 6px 10px; }
+    .state-float .state-detail { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="authGate">
+  <div class="auth-box">
+    <h1>CYBERTRON</h1>
+    <p class="sub">Red + Blue Team Agent Console<br>Enter your gateway auth token to connect.</p>
+    <input type="password" id="tokenInput" placeholder="Paste auth token here..." autocomplete="off">
+    <button id="connectBtn" onclick="doAuth()">Connect</button>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-status" id="authStatus">Ready to connect</div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <span class="logo-text">CYBERTRON</span>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <span class="status-dot connecting" id="connDot"></span>
+        <span id="connText">Connecting...</span>
+      </div>
+      <button class="toggle-btn" id="serverToggle" onclick="toggleServerView()">Server</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">Sessions</div>
+      <div class="session-list" id="sessionList"></div>
+    </div>
+
+    <div class="main-panel">
+      <!-- Floating State Indicator -->
+      <div class="state-float" id="stateFloat">
+        <canvas id="floatCanvas" width="28" height="28"></canvas>
+        <div>
+          <div class="state-name" id="floatLabel">IDLE</div>
+          <div class="state-detail" id="floatDetail">Ready</div>
+        </div>
+      </div>
+
+      <!-- Chat Transcript -->
+      <div class="chat-transcript" id="chatTranscript"></div>
+
+      <!-- Composer -->
+      <div class="composer">
+        <input type="text" id="goalInput" placeholder="Enter reconnaissance goal..." onkeydown="if(event.key==='Enter')startSession()">
+        <button id="sendBtn" onclick="startSession()" disabled>Run</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Approval Modal -->
+<div id="approvalModal">
+  <div class="approval-box">
+    <h3>APPROVAL REQUIRED</h3>
+    <p>An exploit-gated tool has been requested:</p>
+    <p>Tool: <span class="tool-name" id="approvalTool">--</span></p>
+    <pre id="approvalArgs">{}</pre>
+    <p style="font-size:11px;color:var(--error);">This tool can modify target systems. Approve with caution.</p>
+    <div class="approval-actions">
+      <button class="btn-approve" onclick="sendApproval(true)">Approve (Y)</button>
+      <button class="btn-deny" onclick="sendApproval(false)">Deny (N)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Pixel Art Engine (exact Cybertron math) ─────────────────────────────────
+function plot(ctx, x, y, color, alpha) {
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  ctx.fillRect(x, y, 1, 1);
+  ctx.globalAlpha = 1;
+}
+
+function rampColor(t) {
+  const stops = [
+    [0.00, [255, 215, 0]], [0.35, [255, 191, 0]],
+    [0.65, [77, 208, 225]], [1.00, [40, 40, 90]]
+  ];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [t0, c0] = stops[i]; const [t1, c1] = stops[i + 1];
+    if (t >= t0 && t <= t1) {
+      const f = (t - t0) / (t1 - t0);
+      const c = c0.map((v, i2) => Math.round(v + (c1[i2] - v) * f));
+      return `rgb(${c[0]},${c[1]},${c[2]})`;
+    }
+  }
+  return 'rgb(40,40,90)';
+}
+
+function drawSpiral(ctx, N, rotOffset) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, arms = 2, tightness = 2.4;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = x - cx + 0.5, dy = y - cy + 0.5;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r > N / 2) continue;
+      const theta = Math.atan2(dy, dx) + rotOffset;
+      const spiral = Math.cos(arms * theta - tightness * r);
+      const density = (spiral + 1) / 2 * (1 - r / (N / 2));
+      if (density > 0.42 || r < 1.6) plot(ctx, x, y, rampColor(Math.min(r / (N / 2), 1)));
+    }
+  }
+}
+
+function drawPlanet(ctx, N, ringAngle, pulse) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, pr = N * 0.2 * (1 + pulse * 0.05);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = x - cx, dy = y - cy;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r <= pr) plot(ctx, x, y, rampColor((r / pr) * 0.6));
+    }
+  }
+  const cosA = Math.cos(ringAngle), sinA = Math.sin(ringAngle);
+  for (let a = 0; a < 360; a += 4) {
+    const rad = (a * Math.PI) / 180;
+    const ex = Math.cos(rad) * pr * 1.8;
+    const ey = Math.sin(rad) * pr * 0.35;
+    const rx = ex * cosA - ey * sinA;
+    const ry = ex * sinA + ey * cosA;
+    const x = Math.round(cx + rx), y = Math.round(cy + ry);
+    if (x >= 0 && x < N && y >= 0 && y < N) plot(ctx, x, y, '#FFBF00');
+  }
+}
+
+function drawBurst(ctx, N, progress) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, rays = 10;
+  const maxLen = N * 0.46;
+  const len = maxLen * Math.min(progress * 2, 1);
+  const fade = progress > 0.5 ? 1 - (progress - 0.5) * 2 : 1;
+  for (let i = 0; i < rays; i++) {
+    const angle = (i / rays) * Math.PI * 2;
+    for (let d = 0; d < len; d++) {
+      const x = Math.round(cx + Math.cos(angle) * d);
+      const y = Math.round(cy + Math.sin(angle) * d);
+      if (x >= 0 && x < N && y >= 0 && y < N) plot(ctx, x, y, rampColor(d / maxLen), fade);
+    }
+  }
+  for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) plot(ctx, cx + xx, cy + yy, '#FFD700', fade);
+}
+
+// ─── App State ──────────────────────────────────────────────────────────────
+const WS_URL = 'ws://127.0.0.1:8765';
+let ws = null;
+let token = '';
+let animRaf = null;
+let animT = 0;
+let currentState = 'idle';
+let sessions = [];
+let serverView = false;
+let pendingApproval = null;
+let sessionStartTime = 0;
+let timerInterval = null;
+let currentSessionId = '';
+let authed = false;
+
+const floatCanvas = document.getElementById('floatCanvas');
+const floatCtx = floatCanvas.getContext('2d');
+const floatLabel = document.getElementById('floatLabel');
+const floatDetail = document.getElementById('floatDetail');
+const chatTranscript = document.getElementById('chatTranscript');
+const connDot = document.getElementById('connDot');
+const connText = document.getElementById('connText');
+const sendBtn = document.getElementById('sendBtn');
+const goalInput = document.getElementById('goalInput');
+
+function newSessionId() {
+  return 'web-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+}
+
+// ─── Auth ───────────────────────────────────────────────────────────────────
+function doAuth() {
+  token = document.getElementById('tokenInput').value.trim();
+  const err = document.getElementById('authError');
+  const status = document.getElementById('authStatus');
+  const btn = document.getElementById('connectBtn');
+  if (!token) { err.textContent = 'Token required'; return; }
+  btn.disabled = true;
+  status.textContent = 'Connecting to gateway...';
+  err.textContent = '';
+  connectWS();
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+const urlToken = urlParams.get('token');
+if (urlToken) {
+  token = urlToken;
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  connectWS();
+}
+
+// ─── WebSocket ──────────────────────────────────────────────────────────────
+function connectWS() {
+  if (ws) { try { ws.close(); } catch(e){} }
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    updateConn('connecting');
+    ws.send(JSON.stringify({ type: 'auth', token }));
+  };
+
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    handleMessage(msg);
+  };
+
+  ws.onclose = () => {
+    updateConn('disconnected');
+    sendBtn.disabled = true;
+    authed = false;
+    addSystemMsg('Disconnected from gateway — reconnecting...');
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = (e) => {
+    updateConn('disconnected');
+    const err = document.getElementById('authError');
+    if (document.getElementById('authGate').style.display !== 'none') {
+      err.textContent = 'Connection failed. Check gateway and token.';
+      document.getElementById('connectBtn').disabled = false;
+    }
+  };
+}
+
+function updateConn(state) {
+  connDot.className = 'status-dot ' + state;
+  connText.textContent = state === 'connected' ? 'Online' : state === 'connecting' ? 'Connecting...' : 'Offline';
+}
+
+function send(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+}
+
+// ─── Message Handling ─────────────────────────────────────────────────────────
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'auth_result':
+      authed = msg.ok;
+      if (authed) {
+        updateConn('connected');
+        document.getElementById('authGate').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        sendBtn.disabled = false;
+        addSystemMsg('Connected to Cybertron gateway');
+        send({ type: 'get_tools' });
+      } else {
+        const err = document.getElementById('authError');
+        err.textContent = 'Auth rejected — token may be stale';
+        document.getElementById('connectBtn').disabled = false;
+      }
+      break;
+    case 'agent_status':
+      if (msg.sessionId === currentSessionId) {
+        setAgentState(msg.state, msg.detail || '');
+      }
+      break;
+    case 'sessions_snapshot':
+      sessions = msg.sessions || [];
+      renderSessions();
+      break;
+    case 'tool_call_request':
+      if (msg.sessionId === currentSessionId) {
+        showApproval(msg);
+      }
+      break;
+    case 'tool_call_result':
+      if (msg.sessionId === currentSessionId) {
+        addToolResultMsg(msg);
+      }
+      break;
+    case 'session_started':
+      addSystemMsg(`Session started: ${msg.sessionId}`);
+      break;
+    case 'config_state':
+      if (!msg.nimApiKeySet) {
+        addSystemMsg('NIM API key not set — agent will not respond. Configure in Control Center.');
+      }
+      break;
+    case 'tools_catalog':
+      const impl = msg.tools.filter(t => t.implemented).length;
+      addSystemMsg(`${impl} of ${msg.tools.length} tools have real handlers`);
+      break;
+  }
+}
+
+function setAgentState(state, detail) {
+  currentState = state;
+  floatLabel.textContent = state.toUpperCase();
+  floatDetail.textContent = detail || state;
+
+  if (animRaf) cancelAnimationFrame(animRaf);
+  animT = 0;
+
+  if (state === 'thinking' || state === 'running_tool' || state === 'awaiting_approval') {
+    animatePlanet();
+  } else if (state === 'done') {
+    animateSpiral();
+  } else if (state === 'error') {
+    drawPlanet(floatCtx, 28, 0, 0);
+  } else {
+    drawPlanet(floatCtx, 28, 0, 0);
+    stopTimer();
+  }
+}
+
+// ─── Animations ─────────────────────────────────────────────────────────────
+function animatePlanet() {
+  animT += 0.02;
+  drawPlanet(floatCtx, 28, animT * 0.6, (Math.sin(animT * 1.5) + 1) / 2);
+  animRaf = requestAnimationFrame(animatePlanet);
+}
+
+function animateSpiral() {
+  animT += 0.02;
+  drawSpiral(floatCtx, 28, animT * 0.8);
+  animRaf = requestAnimationFrame(animateSpiral);
+}
+
+function animateBurst() {
+  animT += 0.03;
+  const progress = Math.min(animT, 1);
+  drawBurst(floatCtx, 28, progress);
+  if (progress < 1) {
+    animRaf = requestAnimationFrame(animateBurst);
+  } else {
+    setTimeout(() => setAgentState('idle', 'Session complete.'), 500);
+  }
+}
+
+// ─── Timer ──────────────────────────────────────────────────────────────────
+function startTimer() {
+  stopTimer();
+  timerInterval = setInterval(() => {
+    const elapsed = ((Date.now() - sessionStartTime) / 1000).toFixed(1);
+    floatDetail.textContent = `T+${elapsed}s`;
+  }, 100);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+// ─── Chat Messages ──────────────────────────────────────────────────────────
+function addUserMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-user';
+  el.innerHTML = `<div class="msg-label">You</div><div>${escapeHtml(text)}</div><div class="msg-time">${timeNow()}</div>`;
+  chatTranscript.appendChild(el);
+  scrollToBottom();
+}
+
+function addAgentMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-agent';
+  el.innerHTML = `<div class="msg-label">Cybertron</div><div>${escapeHtml(text)}</div><div class="msg-time">${timeNow()}</div>`;
+  chatTranscript.appendChild(el);
+  scrollToBottom();
+}
+
+function addSystemMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-system';
+  el.textContent = text;
+  chatTranscript.appendChild(el);
+  scrollToBottom();
+}
+
+function addToolCallMsg(tool, args) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-tool';
+  el.innerHTML = `<div class="msg-label">TOOL: ${escapeHtml(tool)}</div><div>Executing...</div><pre>${escapeHtml(JSON.stringify(args, null, 2))}</pre><div class="msg-time">${timeNow()}</div>`;
+  chatTranscript.appendChild(el);
+  scrollToBottom();
+}
+
+function addToolResultMsg(result) {
+  const el = document.createElement('div');
+  const ok = result.ok;
+  const toolId = result.toolId || '?';
+  const output = result.output || '';
+  const error = result.error || '';
+  const duration = result.durationMs || 0;
+
+  if (ok) {
+    el.className = 'chat-msg msg-result';
+    el.innerHTML = `<div class="msg-label">RESULT: ${escapeHtml(toolId)} (${duration}ms)</div><pre>${escapeHtml(output)}</pre><div class="msg-time">${timeNow()}</div>`;
+  } else {
+    el.className = 'chat-msg msg-error';
+    el.innerHTML = `<div class="msg-label">ERROR: ${escapeHtml(toolId)} (${duration}ms)</div><div>${escapeHtml(error)}</div><div class="msg-time">${timeNow()}</div>`;
+  }
+  chatTranscript.appendChild(el);
+  scrollToBottom();
+}
+
+function timeNow() {
+  return new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function scrollToBottom() {
+  chatTranscript.scrollTop = chatTranscript.scrollHeight;
+}
+
+// ─── UI Actions ─────────────────────────────────────────────────────────────
+function startSession() {
+  const goal = goalInput.value.trim();
+  if (!goal) return;
+  sendBtn.disabled = true;
+  goalInput.value = '';
+  addUserMsg(goal);
+  addSystemMsg('Starting reconnaissance session...');
+  currentSessionId = newSessionId();
+  send({ type: 'session_start', sessionId: currentSessionId, goal, origin: 'web' });
+  sessionStartTime = Date.now();
+  startTimer();
+  setTimeout(() => sendBtn.disabled = false, 500);
+}
+
+function toggleServerView() {
+  serverView = !serverView;
+  document.getElementById('serverToggle').classList.toggle('active', serverView);
+  document.getElementById('sidebar').style.display = serverView ? 'flex' : 'none';
+  if (serverView) send({ type: 'list_sessions' });
+}
+
+function renderSessions() {
+  const list = document.getElementById('sessionList');
+  list.innerHTML = '';
+  if (!sessions.length) {
+    list.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center;">No active sessions</div>';
+    return;
+  }
+  sessions.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'session-item';
+    const stateClass = `state-${s.state}`;
+    const elapsed = s.finishedAt ? ((s.finishedAt - s.startedAt)/1000).toFixed(1) + 's' : 'active';
+    el.innerHTML = `
+      <div class="session-id">${s.id}</div>
+      <div class="session-goal">${escapeHtml(s.goal)}</div>
+      <div class="session-meta">
+        <span class="session-state ${stateClass}">${s.state}</span>
+        <span>${elapsed}</span>
+        <span>calls:${s.toolCallCount || 0}</span>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+}
+
+function showApproval(msg) {
+  pendingApproval = { sessionId: msg.sessionId, requestId: msg.requestId, toolId: msg.toolId };
+  document.getElementById('approvalTool').textContent = msg.toolId;
+  document.getElementById('approvalArgs').textContent = JSON.stringify(msg.args, null, 2);
+  document.getElementById('approvalModal').style.display = 'flex';
+  addSystemMsg(`Approval required for tool: ${msg.toolId}`);
+}
+
+function sendApproval(approved) {
+  if (!pendingApproval) return;
+  send({
+    type: 'tool_call_approval',
+    sessionId: pendingApproval.sessionId,
+    requestId: pendingApproval.requestId,
+    approved
+  });
+  document.getElementById('approvalModal').style.display = 'none';
+  addSystemMsg(approved ? `Approved: ${pendingApproval.toolId}` : `Denied: ${pendingApproval.toolId}`);
+  pendingApproval = null;
+}
+
+// Initial draw
+drawPlanet(floatCtx, 28, 0, 0);
+</script>
+</body>
+</html>
