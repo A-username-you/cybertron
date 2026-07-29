@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybertron — Agent Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ─── Hermes Agent Design Tokens ───────────────────────────────────────── */
+  :root {
+    --navy: #0a0a1a;
+    --navy-deep: #1a1a2e;
+    --navy-mid: #14142b;
+    --navy-light: #1e1e3f;
+    --navy-lighter: #252545;
+    --ink: #e8e6e1;
+    --cornsilk: #fff8dc;
+    --muted: #8a8a9a;
+    --bronze: #cd7f32;
+    --gold: #ffd700;
+    --amber: #ffbf00;
+    --amber-dim: #b8860b;
+    --teal: #4dd0e1;
+    --teal-dim: #2a8a99;
+    --danger: #ff4444;
+    --success: #44ff88;
+    --warn: #ffa726;
+    --border: #2a2a4a;
+    --border-light: #3a3a5a;
+    --border-bronze: #cd7f32;
+    --status-bg: #1a1a2e;
+    --chat-bg: #0d0d1a;
+    --msg-user-bg: #1a1a35;
+    --msg-user-border: #2a2a55;
+    --msg-agent-bg: #141428;
+    --msg-agent-border: #3a2a1a;
+    --composer-bg: #14142b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--navy);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    overflow: hidden;
+  }
+
+  /* ─── Auth Gate ────────────────────────────────────────────────────────── */
+  #authGate {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--navy);
+  }
+  .auth-box {
+    border: 1px solid var(--border-bronze);
+    border-radius: 8px; padding: 40px; max-width: 420px; width: 90%;
+    background: var(--navy-mid); text-align: center;
+    box-shadow: 0 0 40px rgba(205, 127, 50, 0.08);
+  }
+  .auth-box h1 {
+    font-family: 'Press Start 2P', monospace; font-size: 14px;
+    color: var(--gold); margin-bottom: 8px; text-shadow: 0 0 12px rgba(255,215,0,0.2);
+  }
+  .auth-box .sub {
+    color: var(--muted); font-size: 12px; margin-bottom: 28px; line-height: 1.6;
+  }
+  .auth-box input {
+    width: 100%; padding: 12px 14px; background: var(--navy);
+    border: 1px solid var(--border); border-radius: 4px;
+    color: var(--cornsilk); font-family: inherit; font-size: 13px;
+    margin-bottom: 12px; outline: none;
+  }
+  .auth-box input:focus { border-color: var(--amber); box-shadow: 0 0 8px rgba(255,191,0,0.15); }
+  .auth-box input::placeholder { color: var(--muted); }
+  .auth-box button {
+    width: 100%; padding: 12px; background: var(--amber); color: var(--navy);
+    border: none; border-radius: 4px; font-family: inherit; font-weight: 600;
+    cursor: pointer; font-size: 13px;
+    transition: all 0.15s;
+  }
+  .auth-box button:hover { background: var(--gold); box-shadow: 0 0 12px rgba(255,215,0,0.25); }
+  .auth-box button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-error { color: var(--danger); font-size: 12px; margin-top: 12px; min-height: 18px; }
+  .auth-status { color: var(--muted); font-size: 11px; margin-top: 8px; }
+
+  /* ─── Main App ─────────────────────────────────────────────────────────── */
+  #app { display: none; height: 100vh; flex-direction: column; }
+
+  /* ─── Header ───────────────────────────────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; height: 48px;
+    border-bottom: 1px solid var(--border-bronze);
+    background: var(--navy-mid);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-text {
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--gold); letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(255,215,0,0.15);
+  }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 4px; font-size: 11px;
+    background: var(--navy-light); border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .status-dot.connecting { background: var(--amber); animation: pulse 1s infinite; }
+  .status-dot.disconnected { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .toggle-btn {
+    padding: 6px 12px; background: var(--navy-light); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 4px; cursor: pointer;
+    font-family: inherit; font-size: 11px; transition: all 0.15s;
+  }
+  .toggle-btn.active { color: var(--gold); border-color: var(--amber); background: rgba(255,191,0,0.08); }
+  .toggle-btn:hover { border-color: var(--border-light); color: var(--ink); }
+
+  /* ─── Content Area ─────────────────────────────────────────────────────── */
+  .content { flex: 1; display: flex; overflow: hidden; }
+
+  /* ─── Sidebar ──────────────────────────────────────────────────────────── */
+  .sidebar {
+    width: 260px; border-right: 1px solid var(--border);
+    background: var(--navy-mid); display: flex; flex-direction: column;
+  }
+  .sidebar-header {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--bronze); font-weight: 600;
+    font-family: 'Press Start 2P', monospace;
+  }
+  .session-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .session-item {
+    padding: 10px 12px; border-radius: 6px; margin-bottom: 6px;
+    cursor: pointer; transition: all 0.12s;
+    border: 1px solid transparent;
+  }
+  .session-item:hover { background: var(--navy-light); border-color: var(--border); }
+  .session-item.active { background: var(--navy-light); border-left: 2px solid var(--amber); }
+  .session-id { font-size: 10px; color: var(--muted); margin-bottom: 4px; font-family: 'IBM Plex Mono', monospace; }
+  .session-goal { font-size: 12px; color: var(--cornsilk); margin-bottom: 6px; overflow-wrap: anywhere; line-height: 1.4; }
+  .session-meta { display: flex; gap: 10px; font-size: 10px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .session-state {
+    padding: 1px 6px; border-radius: 3px; font-size: 9px; text-transform: uppercase;
+    font-weight: 600; letter-spacing: 0.5px;
+  }
+  .state-thinking { background: rgba(77,208,225,0.12); color: var(--teal); border: 1px solid rgba(77,208,225,0.2); }
+  .state-writing { background: rgba(255,191,0,0.12); color: var(--amber); border: 1px solid rgba(255,191,0,0.2); }
+  .state-result { background: rgba(255,215,0,0.12); color: var(--gold); border: 1px solid rgba(255,215,0,0.2); }
+  .state-idle { background: rgba(138,138,154,0.08); color: var(--muted); border: 1px solid rgba(138,138,154,0.15); }
+  .state-awaiting_approval { background: rgba(255,68,68,0.12); color: var(--danger); border: 1px solid rgba(255,68,68,0.2); }
+  .state-running_tool { background: rgba(77,208,225,0.12); color: var(--teal); border: 1px solid rgba(77,208,225,0.2); }
+
+  /* ─── Main Panel ───────────────────────────────────────────────────────── */
+  .main-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--chat-bg); }
+
+  /* ─── Chat Transcript (Hermes-style) ───────────────────────────────────── */
+  .chat-transcript {
+    flex: 1; overflow-y: auto; padding: 24px 32px;
+    display: flex; flex-direction: column; gap: 16px;
+    background: var(--chat-bg);
+  }
+  .chat-transcript::-webkit-scrollbar { width: 6px; }
+  .chat-transcript::-webkit-scrollbar-track { background: transparent; }
+  .chat-transcript::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .chat-msg {
+    max-width: 85%; padding: 14px 18px; border-radius: 8px;
+    font-size: 13px; line-height: 1.65;
+    animation: msgIn 0.2s ease-out;
+  }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg-user {
+    align-self: flex-end;
+    background: var(--msg-user-bg);
+    border: 1px solid var(--msg-user-border);
+    color: var(--cornsilk);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .msg-user .msg-label { color: var(--teal); font-size: 10px; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+
+  .msg-agent {
+    align-self: flex-start;
+    background: var(--msg-agent-bg);
+    border: 1px solid var(--msg-agent-border);
+    color: var(--cornsilk);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .msg-agent .msg-label { color: var(--amber); font-size: 10px; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+
+  .msg-system {
+    align-self: center;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 8px 16px;
+    max-width: 60%;
+    text-align: center;
+  }
+
+  .msg-tool {
+    align-self: flex-start;
+    background: rgba(205, 127, 50, 0.06);
+    border: 1px solid rgba(205, 127, 50, 0.25);
+    border-left: 3px solid var(--bronze);
+    color: var(--cornsilk);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+  .msg-tool .msg-label { color: var(--bronze); font-size: 10px; font-weight: 600; margin-bottom: 6px; }
+  .msg-tool pre {
+    background: var(--navy); padding: 8px; border-radius: 4px;
+    overflow-x: auto; font-size: 11px; color: var(--muted);
+    border: 1px solid var(--border); margin-top: 6px;
+  }
+
+  .msg-result {
+    align-self: flex-start;
+    background: rgba(68, 255, 136, 0.06);
+    border: 1px solid rgba(68, 255, 136, 0.2);
+    border-left: 3px solid var(--success);
+    color: var(--cornsilk);
+  }
+  .msg-result .msg-label { color: var(--success); font-size: 10px; font-weight: 600; margin-bottom: 6px; }
+
+  .msg-time {
+    font-size: 10px; color: var(--muted); margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ─── State Indicator (Floating) ───────────────────────────────────────── */
+  .state-float {
+    position: absolute; top: 16px; right: 24px; z-index: 10;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; background: var(--navy-mid);
+    border: 1px solid var(--border); border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .state-float canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+  .state-float .state-name {
+    font-family: 'Press Start 2P', monospace; font-size: 8px; color: var(--gold);
+  }
+  .state-float .state-detail {
+    font-size: 10px; color: var(--muted); max-width: 200px;
+  }
+
+  /* ─── Composer ─────────────────────────────────────────────────────────── */
+  .composer {
+    display: flex; gap: 10px; padding: 14px 20px;
+    border-top: 1px solid var(--border-bronze);
+    background: var(--composer-bg);
+  }
+  .composer input {
+    flex: 1; padding: 12px 14px; background: var(--navy);
+    border: 1px solid var(--border); border-radius: 4px;
+    color: var(--cornsilk); font-family: inherit; font-size: 13px; outline: none;
+  }
+  .composer input:focus { border-color: var(--amber); box-shadow: 0 0 8px rgba(255,191,0,0.1); }
+  .composer input::placeholder { color: var(--muted); }
+  .composer button {
+    padding: 12px 24px; background: var(--amber); color: var(--navy);
+    border: none; border-radius: 4px; font-family: inherit; font-weight: 600;
+    cursor: pointer; font-size: 13px; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .composer button:hover { background: var(--gold); box-shadow: 0 0 12px rgba(255,215,0,0.2); }
+  .composer button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ─── Approval Modal ───────────────────────────────────────────────────── */
+  #approvalModal {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: rgba(10,10,26,0.85); align-items: center; justify-content: center;
+  }
+  .approval-box {
+    border: 1px solid var(--danger); border-radius: 8px;
+    padding: 32px; max-width: 460px; width: 90%; background: var(--navy-mid);
+    box-shadow: 0 0 40px rgba(255,68,68,0.1);
+  }
+  .approval-box h3 {
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: var(--danger); margin-bottom: 16px;
+  }
+  .approval-box p { color: var(--muted); font-size: 12px; margin-bottom: 8px; line-height: 1.5; }
+  .approval-box .tool-name { color: var(--amber); font-weight: 600; }
+  .approval-box pre {
+    background: var(--navy); padding: 10px; border-radius: 4px;
+    font-size: 11px; color: var(--cornsilk); overflow-x: auto; margin: 12px 0;
+    border: 1px solid var(--border); font-family: 'IBM Plex Mono', monospace;
+  }
+  .approval-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .approval-actions button { flex: 1; padding: 12px; border-radius: 4px;
+    font-family: inherit; font-weight: 600; cursor: pointer; font-size: 13px; border: none;
+    transition: all 0.15s;
+  }
+  .btn-approve { background: var(--success); color: var(--navy); }
+  .btn-approve:hover { box-shadow: 0 0 12px rgba(68,255,136,0.3); }
+  .btn-deny { background: var(--danger); color: #fff; }
+  .btn-deny:hover { box-shadow: 0 0 12px rgba(255,68,68,0.3); }
+
+  /* ─── Responsive ───────────────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .sidebar { width: 220px; }
+    .chat-msg { max-width: 92%; }
+    .chat-transcript { padding: 16px; }
+  }
+  @media (max-width: 600px) {
+    .sidebar { display: none; }
+    .composer { flex-direction: column; }
+    .composer button { width: 100%; }
+    .header-right .status-pill span:not(.status-dot) { display: none; }
+    .chat-transcript { padding: 12px; }
+    .state-float { right: 8px; top: 8px; padding: 6px 10px; }
+    .state-float .state-detail { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="authGate">
+  <div class="auth-box">
+    <h1>CYBERTRON</h1>
+    <p class="sub">Red + Blue Team Agent Console<br>Enter your gateway auth token to connect.</p>
+    <input type="password" id="tokenInput" placeholder="Paste auth token here..." autocomplete="off">
+    <button id="connectBtn" onclick="doAuth()">Connect</button>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-status" id="authStatus">Ready to connect</div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <span class="logo-text">CYBERTRON</span>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <span class="status-dot connecting" id="connDot"></span>
+        <span id="connText">Connecting...</span>
+      </div>
+      <button class="toggle-btn" id="serverToggle" onclick="toggleServerView()">Server</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">Sessions</div>
+      <div class="session-list" id="sessionList"></div>
+    </div>
+
+    <div class="main-panel" style="position:relative;">
+      <!-- Floating State Indicator -->
+      <div class="state-float" id="stateFloat">
+        <canvas id="floatCanvas" width="28" height="28"></canvas>
+        <div>
+          <div class="state-name" id="floatLabel">IDLE</div>
+          <div class="state-detail" id="floatDetail">Ready</div>
+        </div>
+      </div>
+
+      <!-- Chat Transcript -->
+      <div class="chat-transcript" id="chatTranscript"></div>
+
+      <!-- Composer -->
+      <div class="composer">
+        <input type="text" id="goalInput" placeholder="Enter reconnaissance goal..." onkeydown="if(event.key==='Enter')startSession()">
+        <button id="sendBtn" onclick="startSession()" disabled>Run</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Approval Modal -->
+<div id="approvalModal">
+  <div class="approval-box">
+    <h3>APPROVAL REQUIRED</h3>
+    <p>An exploit-gated tool has been requested:</p>
+    <p>Tool: <span class="tool-name" id="approvalTool">--</span></p>
+    <pre id="approvalArgs">{}</pre>
+    <p style="font-size:11px;color:var(--danger);">This tool can modify target systems. Approve with caution.</p>
+    <div class="approval-actions">
+      <button class="btn-approve" onclick="sendApproval(true)">Approve (Y)</button>
+      <button class="btn-deny" onclick="sendApproval(false)">Deny (N)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Pixel Art Engine (exact match to uploaded Cybertron animations) ───────
+function plot(ctx, x, y, color, alpha) {
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  ctx.fillRect(x, y, 1, 1);
+  ctx.globalAlpha = 1;
+}
+
+function rampColor(t) {
+  const stops = [
+    [0.00, [255, 215, 0]], [0.35, [255, 191, 0]],
+    [0.65, [77, 208, 225]], [1.00, [40, 40, 90]]
+  ];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [t0, c0] = stops[i]; const [t1, c1] = stops[i + 1];
+    if (t >= t0 && t <= t1) {
+      const f = (t - t0) / (t1 - t0);
+      const c = c0.map((v, i2) => Math.round(v + (c1[i2] - v) * f));
+      return `rgb(${c[0]},${c[1]},${c[2]})`;
+    }
+  }
+  return 'rgb(40,40,90)';
+}
+
+function drawSpiral(ctx, N, rotOffset) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, arms = 2, tightness = 2.4;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = x - cx + 0.5, dy = y - cy + 0.5;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r > N / 2) continue;
+      const theta = Math.atan2(dy, dx) + rotOffset;
+      const spiral = Math.cos(arms * theta - tightness * r);
+      const density = (spiral + 1) / 2 * (1 - r / (N / 2));
+      if (density > 0.42 || r < 1.6) plot(ctx, x, y, rampColor(Math.min(r / (N / 2), 1)));
+    }
+  }
+}
+
+function drawPlanet(ctx, N, ringAngle, pulse) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, pr = N * 0.2 * (1 + pulse * 0.05);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = x - cx, dy = y - cy;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r <= pr) plot(ctx, x, y, rampColor((r / pr) * 0.6));
+    }
+  }
+  const cosA = Math.cos(ringAngle), sinA = Math.sin(ringAngle);
+  for (let a = 0; a < 360; a += 4) {
+    const rad = (a * Math.PI) / 180;
+    const ex = Math.cos(rad) * pr * 1.8;
+    const ey = Math.sin(rad) * pr * 0.35;
+    const rx = ex * cosA - ey * sinA;
+    const ry = ex * sinA + ey * cosA;
+    const x = Math.round(cx + rx), y = Math.round(cy + ry);
+    if (x >= 0 && x < N && y >= 0 && y < N) plot(ctx, x, y, '#FFBF00');
+  }
+}
+
+function drawBurst(ctx, N, progress) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, rays = 10;
+  const maxLen = N * 0.46;
+  const len = maxLen * Math.min(progress * 2, 1);
+  const fade = progress > 0.5 ? 1 - (progress - 0.5) * 2 : 1;
+  for (let i = 0; i < rays; i++) {
+    const angle = (i / rays) * Math.PI * 2;
+    for (let d = 0; d < len; d++) {
+      const x = Math.round(cx + Math.cos(angle) * d);
+      const y = Math.round(cy + Math.sin(angle) * d);
+      if (x >= 0 && x < N && y >= 0 && y < N) plot(ctx, x, y, rampColor(d / maxLen), fade);
+    }
+  }
+  for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) plot(ctx, cx + xx, cy + yy, '#FFD700', fade);
+}
+
+// ─── App State ──────────────────────────────────────────────────────────────
+const WS_URL = 'ws://127.0.0.1:8765/ws';
+let ws = null;
+let token = '';
+let animRaf = null;
+let animT = 0;
+let currentState = 'idle';
+let sessions = [];
+let serverView = false;
+let pendingApproval = null;
+let sessionStartTime = 0;
+let timerInterval = null;
+let msgCounter = 0;
+
+const floatCanvas = document.getElementById('floatCanvas');
+const floatCtx = floatCanvas.getContext('2d');
+const floatLabel = document.getElementById('floatLabel');
+const floatDetail = document.getElementById('floatDetail');
+const chatTranscript = document.getElementById('chatTranscript');
+const connDot = document.getElementById('connDot');
+const connText = document.getElementById('connText');
+const sendBtn = document.getElementById('sendBtn');
+const goalInput = document.getElementById('goalInput');
+
+// ─── Auth ───────────────────────────────────────────────────────────────────
+function doAuth() {
+  token = document.getElementById('tokenInput').value.trim();
+  const err = document.getElementById('authError');
+  const status = document.getElementById('authStatus');
+  const btn = document.getElementById('connectBtn');
+  if (!token) { err.textContent = 'Token required'; return; }
+  btn.disabled = true;
+  status.textContent = 'Connecting to gateway...';
+  err.textContent = '';
+  connectWS();
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+const urlToken = urlParams.get('token');
+if (urlToken) {
+  token = urlToken;
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  connectWS();
+}
+
+// ─── WebSocket ──────────────────────────────────────────────────────────────
+function connectWS() {
+  if (ws) { try { ws.close(); } catch(e){} }
+  ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`);
+
+  ws.onopen = () => {
+    updateConn('connected');
+    document.getElementById('authGate').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    sendBtn.disabled = false;
+    addSystemMsg('Connected to Cybertron gateway');
+  };
+
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    handleMessage(msg);
+  };
+
+  ws.onclose = () => {
+    updateConn('disconnected');
+    sendBtn.disabled = true;
+    addSystemMsg('Disconnected from gateway -- reconnecting...');
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = (e) => {
+    updateConn('disconnected');
+    const err = document.getElementById('authError');
+    if (document.getElementById('authGate').style.display !== 'none') {
+      err.textContent = 'Connection failed. Check gateway and token.';
+      document.getElementById('connectBtn').disabled = false;
+    }
+  };
+}
+
+function updateConn(state) {
+  connDot.className = 'status-dot ' + state;
+  connText.textContent = state === 'connected' ? 'Online' : state === 'connecting' ? 'Connecting...' : 'Offline';
+}
+
+function send(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+}
+
+// ─── Message Handling ─────────────────────────────────────────────────────────
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'agent_status':
+      setAgentState(msg.status, msg.detail || '');
+      break;
+    case 'sessions_snapshot':
+      sessions = msg.sessions || [];
+      renderSessions();
+      break;
+    case 'tool_call_request':
+      showApproval(msg);
+      break;
+    case 'tool_call_result':
+      addToolResultMsg(msg.result);
+      break;
+    case 'session_started':
+      addSystemMsg(`Session started: ${msg.sessionId}`);
+      sessionStartTime = Date.now();
+      startTimer();
+      break;
+  }
+}
+
+function setAgentState(state, detail) {
+  currentState = state;
+  floatLabel.textContent = state.toUpperCase();
+  floatDetail.textContent = detail || state;
+
+  if (animRaf) cancelAnimationFrame(animRaf);
+  animT = 0;
+
+  if (state === 'thinking' || state === 'running_tool' || state === 'awaiting_approval') {
+    animatePlanet();
+  } else if (state === 'writing') {
+    animateSpiral();
+  } else if (state === 'result') {
+    animateBurst();
+  } else {
+    drawPlanet(floatCtx, 28, 0, 0);
+    stopTimer();
+  }
+}
+
+// ─── Animations ─────────────────────────────────────────────────────────────
+function animatePlanet() {
+  animT += 0.02;
+  drawPlanet(floatCtx, 28, animT * 0.6, (Math.sin(animT * 1.5) + 1) / 2);
+  animRaf = requestAnimationFrame(animatePlanet);
+}
+
+function animateSpiral() {
+  animT += 0.02;
+  drawSpiral(floatCtx, 28, animT * 0.8);
+  animRaf = requestAnimationFrame(animateSpiral);
+}
+
+function animateBurst() {
+  animT += 0.03;
+  const progress = Math.min(animT, 1);
+  drawBurst(floatCtx, 28, progress);
+  if (progress < 1) {
+    animRaf = requestAnimationFrame(animateBurst);
+  } else {
+    setTimeout(() => setAgentState('idle', 'Session complete.'), 500);
+  }
+}
+
+// ─── Timer ──────────────────────────────────────────────────────────────────
+function startTimer() {
+  stopTimer();
+  timerInterval = setInterval(() => {
+    const elapsed = ((Date.now() - sessionStartTime) / 1000).toFixed(1);
+    floatDetail.textContent = `T+${elapsed}s`;
+  }, 100);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+// ─── Chat Messages ──────────────────────────────────────────────────────────
+function addUserMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-user';
+  el.innerHTML = `<div class="msg-label">You</div><div>${escapeHtml(text)}</div><div class="msg-time">${timeNow()}</div>`;
+  chatTranscript.appendChild(el);
+  chatTranscript.scrollTop = chatTranscript.scrollHeight;
+}
+
+function addAgentMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-agent';
+  el.innerHTML = `<div class="msg-label">Cybertron</div><div>${escapeHtml(text)}</div><div class="msg-time">${timeNow()}</div>`;
+  chatTranscript.appendChild(el);
+  chatTranscript.scrollTop = chatTranscript.scrollHeight;
+}
+
+function addSystemMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-system';
+  el.textContent = text;
+  chatTranscript.appendChild(el);
+  chatTranscript.scrollTop = chatTranscript.scrollHeight;
+}
+
+function addToolCallMsg(tool, args) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-tool';
+  el.innerHTML = `<div class="msg-label">TOOL: ${escapeHtml(tool)}</div><div>Executing...</div><pre>${escapeHtml(JSON.stringify(args, null, 2))}</pre><div class="msg-time">${timeNow()}</div>`;
+  chatTranscript.appendChild(el);
+  chatTranscript.scrollTop = chatTranscript.scrollHeight;
+}
+
+function addToolResultMsg(result) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg msg-result';
+  el.innerHTML = `<div class="msg-label">RESULT</div><div>${escapeHtml(JSON.stringify(result, null, 2))}</div><div class="msg-time">${timeNow()}</div>`;
+  chatTranscript.appendChild(el);
+  chatTranscript.scrollTop = chatTranscript.scrollHeight;
+}
+
+function timeNow() {
+  return new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ─── UI Actions ─────────────────────────────────────────────────────────────
+function startSession() {
+  const goal = goalInput.value.trim();
+  if (!goal) return;
+  sendBtn.disabled = true;
+  goalInput.value = '';
+  addUserMsg(goal);
+  addSystemMsg('Starting reconnaissance session...');
+  send({ type: 'session_start', goal });
+  setTimeout(() => sendBtn.disabled = false, 500);
+}
+
+function toggleServerView() {
+  serverView = !serverView;
+  document.getElementById('serverToggle').classList.toggle('active', serverView);
+  document.getElementById('sidebar').style.display = serverView ? 'flex' : 'none';
+  if (serverView) send({ type: 'sessions_request' });
+}
+
+function renderSessions() {
+  const list = document.getElementById('sessionList');
+  list.innerHTML = '';
+  if (!sessions.length) {
+    list.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:12px;text-align:center;">No active sessions</div>';
+    return;
+  }
+  sessions.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'session-item';
+    const stateClass = `state-${s.state}`;
+    el.innerHTML = `
+      <div class="session-id">${s.id}</div>
+      <div class="session-goal">${escapeHtml(s.goal)}</div>
+      <div class="session-meta">
+        <span class="session-state ${stateClass}">${s.state}</span>
+        <span>${s.elapsed}s</span>
+        <span>${s.toolCalls} tools</span>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+}
+
+function showApproval(msg) {
+  pendingApproval = msg.sessionId;
+  document.getElementById('approvalTool').textContent = msg.tool;
+  document.getElementById('approvalArgs').textContent = JSON.stringify(msg.args, null, 2);
+  document.getElementById('approvalModal').style.display = 'flex';
+  addSystemMsg(`Approval required for tool: ${msg.tool}`);
+}
+
+function sendApproval(approved) {
+  if (!pendingApproval) return;
+  send({ type: 'tool_call_approval', sessionId: pendingApproval, approved });
+  document.getElementById('approvalModal').style.display = 'none';
+  pendingApproval = null;
+  addSystemMsg(approved ? 'Tool approved' : 'Tool denied');
+}
+
+// Initial draw
+drawPlanet(floatCtx, 28, 0, 0);
+</script>
+</body>
+</html>
