@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybertron AI — Security Automation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/cybertron.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="bgCanvas"></canvas>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <canvas id="logoCanvas" width="28" height="28"></canvas>
+        <span class="logo-text">CYBERTRON</span>
+      </div>
+      <div class="version">v2.1.0-ai</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-view="chat"><span class="nav-icon">◈</span><span class="nav-label">AI Chat</span></button>
+      <button class="nav-item" data-view="dashboard"><span class="nav-icon">▣</span><span class="nav-label">Dashboard</span></button>
+      <button class="nav-item" data-view="scans"><span class="nav-icon">⚡</span><span class="nav-label">Live Scans</span></button>
+      <button class="nav-item" data-view="plugins"><span class="nav-icon">◉</span><span class="nav-label">Plugins</span></button>
+      <button class="nav-item" data-view="findings"><span class="nav-icon">◆</span><span class="nav-label">Findings</span></button>
+      <button class="nav-item" data-view="engagements"><span class="nav-icon">◎</span><span class="nav-label">Engagements</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="ws-status" id="wsStatus"><span class="ws-dot"></span><span class="ws-text">Connecting...</span></div>
+      <div class="token-ring" id="tokenRing">
+        <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="#1a1a2e" stroke-width="2"/><circle cx="18" cy="18" r="16" fill="none" stroke="#4dd0e1" stroke-width="2" stroke-dasharray="100" stroke-dashoffset="70" stroke-linecap="round" transform="rotate(-90 18 18)"/></svg>
+        <span class="token-text">42%</span>
+      </div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="view active" id="view-chat">
+      <div class="chat-container">
+        <div class="chat-header">
+          <h2>AI Security Agent</h2>
+          <div class="agent-status" id="agentStatus"><span class="status-dot idle"></span><span class="status-text">Idle</span></div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="message system">
+            <div class="message-content">
+              <p>Welcome to <strong>Cybertron AI</strong>. I can help you with:</p>
+              <ul>
+                <li>Running security scans (subdomain enum, port scan, cloud audit)</li>
+                <li>Analyzing binaries (PE, ELF, Mach-O)</li>
+                <li>Mobile app security (APK static analysis)</li>
+                <li>Network forensics (PCAP analysis)</li>
+                <li>Full engagement orchestration</li>
+              </ul>
+              <p class="hint">Try: <em>"Scan example.com for subdomains and open ports"</em></p>
+            </div>
+          </div>
+        </div>
+        <div class="chat-composer">
+          <div class="composer-input-wrap">
+            <textarea id="chatInput" placeholder="Describe your security task..." rows="1"></textarea>
+            <button class="send-btn" id="sendBtn"><span>➤</span></button>
+          </div>
+          <div class="composer-meta">
+            <span class="model-badge" id="modelBadge">Hermes-3-405B</span>
+            <span class="shortcut-hint">Enter to send · Shift+Enter for new line</span>
+          </div>
+        </div>
+      </div>
+      <div class="right-panel" id="rightPanel">
+        <div class="panel-section">
+          <h3>Active Context</h3>
+          <div class="context-item"><span class="ctx-label">Session</span><span class="ctx-value" id="sessionId">default</span></div>
+          <div class="context-item"><span class="ctx-label">Target</span><span class="ctx-value" id="ctxTarget">—</span></div>
+          <div class="context-item"><span class="ctx-label">Plugins</span><span class="ctx-value" id="ctxPlugins">—</span></div>
+        </div>
+        <div class="panel-section">
+          <h3>Recent Findings</h3>
+          <div class="findings-mini" id="miniFindings"><div class="empty-state">No findings yet</div></div>
+        </div>
+        <div class="panel-section">
+          <h3>Quick Commands</h3>
+          <div class="quick-cmds">
+            <button class="cmd-chip" data-cmd="Scan example.com">Scan domain</button>
+            <button class="cmd-chip" data-cmd="Audit AWS config">Audit AWS</button>
+            <button class="cmd-chip" data-cmd="Analyze binary file.exe">Analyze binary</button>
+            <button class="cmd-chip" data-cmd="Start bug bounty engagement for target.com">New engagement</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="view" id="view-dashboard">
+      <div class="dash-header">
+        <h2>Security Command Center</h2>
+        <div class="dash-actions"><button class="btn-primary" id="newScanBtn">+ New Scan</button></div>
+      </div>
+      <div class="dash-grid">
+        <div class="dash-card"><div class="card-label">Total Scans</div><div class="card-value" id="statScans">0</div><div class="card-trend">+12% this week</div></div>
+        <div class="dash-card"><div class="card-label">Findings</div><div class="card-value" id="statFindings">0</div><div class="card-trend" id="statFindingsTrend">—</div></div>
+        <div class="dash-card"><div class="card-label">Active Engagements</div><div class="card-value" id="statEngagements">0</div></div>
+        <div class="dash-card"><div class="card-label">Plugins Loaded</div><div class="card-value" id="statPlugins">0</div></div>
+      </div>
+      <div class="dash-charts">
+        <div class="chart-card">
+          <h3>Severity Distribution</h3>
+          <div class="severity-bars" id="severityBars">
+            <div class="sev-row"><span class="sev-label critical">Critical</span><div class="sev-bar"><div class="sev-fill" style="width:0%"></div></div><span class="sev-count">0</span></div>
+            <div class="sev-row"><span class="sev-label high">High</span><div class="sev-bar"><div class="sev-fill" style="width:0%"></div></div><span class="sev-count">0</span></div>
+            <div class="sev-row"><span class="sev-label medium">Medium</span><div class="sev-bar"><div class="sev-fill" style="width:0%"></div></div><span class="sev-count">0</span></div>
+            <div class="sev-row"><span class="sev-label low">Low</span><div class="sev-bar"><div class="sev-fill" style="width:0%"></div></div><span class="sev-count">0</span></div>
+            <div class="sev-row"><span class="sev-label info">Info</span><div class="sev-bar"><div class="sev-fill" style="width:0%"></div></div><span class="sev-count">0</span></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Recent Activity</h3>
+          <div class="activity-list" id="activityList"><div class="empty-state">No recent activity</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="view" id="view-scans"><div class="view-placeholder">Live scan monitor</div></div>
+    <div class="view" id="view-plugins"><div class="view-placeholder">Plugin marketplace</div></div>
+    <div class="view" id="view-findings"><div class="view-placeholder">Findings database</div></div>
+    <div class="view" id="view-engagements"><div class="view-placeholder">Engagement manager</div></div>
+  </main>
+</div>
+<div class="state-icon-float" id="stateIconFloat"><canvas id="stateCanvas" width="28" height="28"></canvas></div>
+<script src="/static/js/pixel-art.js"></script>
+<script src="/static/js/cybertron.js"></script>
+</body>
+</html>

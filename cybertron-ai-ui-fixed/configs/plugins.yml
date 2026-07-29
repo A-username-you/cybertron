@@ -1,0 +1,17 @@
+subdomain_enum:
+  wordlist: wordlists/subdomains.txt
+  threads: 50
+port_scan:
+  top_ports: 1000
+  timeout: 2.0
+  threads: 100
+aws_misconfig:
+  regions:
+    - us-east-1
+    - eu-west-1
+docker_audit:
+  check_privileged: true
+  check_capabilities: true
+openapi_fuzz:
+  max_endpoints: 500
+  fuzz_depth: 3

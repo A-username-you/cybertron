@@ -1,0 +1,17 @@
+services:
+  cybertron-ai:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: cybertron-ai
+    ports:
+      - "8000:8000"
+    environment:
+      - CYBERTRON_LLM_PROVIDER=openrouter
+      - CYBERTRON_LLM_API_KEY=${CYBERTRON_LLM_API_KEY:-}
+      - CYBERTRON_LLM_MODEL=nousresearch/hermes-3-llama-3.1-405b
+      - CYBERTRON_LLM_BASE_URL=https://openrouter.ai/api/v1
+    volumes:
+      - ./configs:/app/configs
+      - ./data:/app/data
+    restart: unless-stopped
