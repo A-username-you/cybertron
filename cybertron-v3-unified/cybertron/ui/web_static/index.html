@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybertron v3.0 — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/cybertron.css">
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">
+        <canvas id="brandCanvas" width="28" height="28"></canvas>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">CYBERTRON</div>
+        <div class="brand-version">v3.0</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section">Red Team</div>
+      <a href="#" class="nav-item active" data-module="recon">
+        <span class="nav-icon">🔍</span> Reconnaissance
+      </a>
+      <a href="#" class="nav-item" data-module="scan">
+        <span class="nav-icon">🎯</span> Vulnerability Scan
+      </a>
+      <a href="#" class="nav-item" data-module="brute">
+        <span class="nav-icon">🔨</span> Brute Force
+      </a>
+      <a href="#" class="nav-item" data-module="exploit">
+        <span class="nav-icon">💥</span> Exploitation
+      </a>
+
+      <div class="nav-section">Blue Team</div>
+      <a href="#" class="nav-item" data-module="forensics">
+        <span class="nav-icon">🔬</span> Forensics
+      </a>
+      <a href="#" class="nav-item" data-module="hunt">
+        <span class="nav-icon">🛡️</span> Threat Hunt
+      </a>
+      <a href="#" class="nav-item" data-module="monitor">
+        <span class="nav-icon">📡</span> Monitor
+      </a>
+
+      <div class="nav-section">Reverse Engineering</div>
+      <a href="#" class="nav-item" data-module="reverse">
+        <span class="nav-icon">🧬</span> Binary Analysis
+      </a>
+      <a href="#" class="nav-item" data-module="malware">
+        <span class="nav-icon">🦠</span> Malware Lab
+      </a>
+      <a href="#" class="nav-item" data-module="memory">
+        <span class="nav-icon">🧠</span> Memory Analysis
+      </a>
+
+      <div class="nav-section">AI & Reports</div>
+      <a href="#" class="nav-item" data-module="ai">
+        <span class="nav-icon">🤖</span> AI Assistant
+      </a>
+      <a href="#" class="nav-item" data-module="reports">
+        <span class="nav-icon">📊</span> Reports
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="server-toggle">
+        <label class="switch">
+          <input type="checkbox" id="serverToggle">
+          <span class="slider"></span>
+        </label>
+        <span class="server-label">API Server</span>
+        <span class="server-status" id="serverStatus">OFF</span>
+      </div>
+      <a href="/logout" class="logout">Logout</a>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="breadcrumb" id="breadcrumb">Red Team / Reconnaissance</div>
+      <div class="topbar-right">
+        <div class="api-key-badge">
+          <span class="key-icon">🔑</span>
+          <span id="apiKeyStatus">API Key: Not Set</span>
+        </div>
+        <button class="btn btn-ghost" id="settingsBtn">⚙️</button>
+      </div>
+    </header>
+
+    <!-- State Canvas -->
+    <div class="state-bar">
+      <div class="state-canvas-wrap">
+        <canvas id="stateCanvas" width="28" height="28"></canvas>
+      </div>
+      <div class="state-info">
+        <div class="state-label" id="stateLabel">IDLE</div>
+        <div class="state-detail" id="stateDetail">Ready for operations</div>
+      </div>
+      <div class="state-actions">
+        <button class="btn btn-primary" id="runBtn">▶ Run</button>
+        <button class="btn btn-ghost" id="stopBtn">⏹ Stop</button>
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content" id="contentArea">
+      <!-- Dynamic content loaded here -->
+      <div class="panel" id="panel-recon">
+        <h2>Reconnaissance</h2>
+        <div class="form-row">
+          <label>Target</label>
+          <input type="text" id="reconTarget" placeholder="example.com" value="example.com">
+        </div>
+        <div class="form-row">
+          <label>Scope (optional)</label>
+          <input type="text" id="reconScope" placeholder="*.example.com">
+        </div>
+        <div class="stats-grid" id="reconStats">
+          <div class="stat-card"><div class="stat-value" id="statSubdomains">0</div><div class="stat-label">Subdomains</div></div>
+          <div class="stat-card"><div class="stat-value" id="statPorts">0</div><div class="stat-label">Open Ports</div></div>
+          <div class="stat-card"><div class="stat-value" id="statDNS">0</div><div class="stat-label">DNS Records</div></div>
+          <div class="stat-card"><div class="stat-value" id="statTech">0</div><div class="stat-label">Tech Stack</div></div>
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Output</div>
+          <pre class="output-body" id="reconOutput">Click Run to start reconnaissance...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-scan">
+        <h2>Vulnerability Scan</h2>
+        <div class="form-row">
+          <label>Target URL</label>
+          <input type="text" id="scanTarget" placeholder="https://example.com" value="https://example.com">
+        </div>
+        <div class="checks-list">
+          <label class="check-item"><input type="checkbox" checked> XSS</label>
+          <label class="check-item"><input type="checkbox" checked> SQL Injection</label>
+          <label class="check-item"><input type="checkbox" checked> SSRF</label>
+          <label class="check-item"><input type="checkbox" checked> IDOR</label>
+          <label class="check-item"><input type="checkbox" checked> Security Headers</label>
+          <label class="check-item"><input type="checkbox" checked> SSL/TLS</label>
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Findings</div>
+          <pre class="output-body" id="scanOutput">Click Run to start scanning...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-brute">
+        <h2>Brute Force</h2>
+        <div class="form-row">
+          <label>Target</label>
+          <input type="text" id="bruteTarget" placeholder="https://example.com" value="https://example.com">
+        </div>
+        <div class="form-row">
+          <label>Mode</label>
+          <select id="bruteMode">
+            <option value="dirs">Directories</option>
+            <option value="subdomains">Subdomains</option>
+            <option value="params">Parameters</option>
+            <option value="vhosts">Virtual Hosts</option>
+            <option value="api">API Endpoints</option>
+            <option value="idor">IDOR</option>
+          </select>
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Results</div>
+          <pre class="output-body" id="bruteOutput">Click Run to start brute force...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-exploit">
+        <h2>Exploitation</h2>
+        <div class="alert alert-warning">
+          ⚠️ Exploitation modules require explicit approval. High-severity exploits are gated.
+        </div>
+        <div class="form-row">
+          <label>Target</label>
+          <input type="text" id="exploitTarget" placeholder="https://example.com">
+        </div>
+        <div class="form-row">
+          <label>Module</label>
+          <select id="exploitModule">
+            <option value="auto">Auto-Detect</option>
+            <option value="sqli">SQL Injection</option>
+            <option value="xss">XSS</option>
+            <option value="rce">Remote Code Execution</option>
+            <option value="lfi">Local File Inclusion</option>
+            <option value="ssrf">SSRF</option>
+            <option value="idor">IDOR</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="check-item"><input type="checkbox" id="exploitApprove"> I approve this exploitation attempt</label>
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Output</div>
+          <pre class="output-body" id="exploitOutput">Approval required before execution...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-forensics">
+        <h2>Digital Forensics</h2>
+        <div class="form-row">
+          <label>Source (file or directory)</label>
+          <input type="text" id="forensicsSource" placeholder="/path/to/disk.img">
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Artifacts</div>
+          <pre class="output-body" id="forensicsOutput">Select a source and click Run...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-hunt">
+        <h2>Threat Hunt</h2>
+        <div class="form-row">
+          <label>IOC (hash, IP, domain, filename)</label>
+          <input type="text" id="huntIOC" placeholder="a1b2c3d4...">
+        </div>
+        <div class="form-row">
+          <label>Source Directory</label>
+          <input type="text" id="huntSource" value="/var/log">
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Matches</div>
+          <pre class="output-body" id="huntOutput">Enter an IOC and click Run...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-reverse">
+        <h2>Reverse Engineering</h2>
+        <div class="form-row">
+          <label>Binary File</label>
+          <input type="text" id="reverseTarget" placeholder="/path/to/binary">
+        </div>
+        <div class="checks-list">
+          <label class="check-item"><input type="checkbox" checked> PE/ELF/Mach-O Analysis</label>
+          <label class="check-item"><input type="checkbox" checked> String Extraction</label>
+          <label class="check-item"><input type="checkbox" checked> IOC Extraction</label>
+          <label class="check-item"><input type="checkbox" checked> YARA Scan</label>
+          <label class="check-item"><input type="checkbox" checked> Disassembly</label>
+          <label class="check-item"><input type="checkbox" checked> Entropy Analysis</label>
+          <label class="check-item"><input type="checkbox" checked> APK/JAR Analysis</label>
+          <label class="check-item"><input type="checkbox" checked> .NET Analysis</label>
+          <label class="check-item"><input type="checkbox" checked> Script Deobfuscation</label>
+          <label class="check-item"><input type="checkbox" checked> Shellcode Detection</label>
+          <label class="check-item"><input type="checkbox" checked> Firmware Extraction</label>
+          <label class="check-item"><input type="checkbox" checked> Memory Dump Analysis</label>
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Analysis Report</div>
+          <pre class="output-body" id="reverseOutput">Select a binary and click Run...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-malware">
+        <h2>Malware Lab</h2>
+        <div class="alert alert-info">
+          🧬 Full malware analysis pipeline: static, dynamic, and behavioral analysis.
+        </div>
+        <div class="form-row">
+          <label>Sample Path</label>
+          <input type="text" id="malwareTarget" placeholder="/path/to/sample.exe">
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Analysis</div>
+          <pre class="output-body" id="malwareOutput">Select a sample and click Run...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-memory">
+        <h2>Memory Analysis</h2>
+        <div class="form-row">
+          <label>Memory Dump</label>
+          <input type="text" id="memoryTarget" placeholder="/path/to/memory.dmp">
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Volatility Output</div>
+          <pre class="output-body" id="memoryOutput">Select a memory dump and click Run...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-monitor">
+        <h2>System Monitor</h2>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-value" id="monCpu">0%</div><div class="stat-label">CPU</div></div>
+          <div class="stat-card"><div class="stat-value" id="monMem">0%</div><div class="stat-label">Memory</div></div>
+          <div class="stat-card"><div class="stat-value" id="monNet">0</div><div class="stat-label">Connections</div></div>
+          <div class="stat-card"><div class="stat-value" id="monAlerts">0</div><div class="stat-label">Alerts</div></div>
+        </div>
+        <div class="output-panel">
+          <div class="output-header">Live Log</div>
+          <pre class="output-body" id="monitorOutput">Monitoring active...</pre>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-ai">
+        <h2>AI Assistant — Nemotron</h2>
+        <div class="chat-container" id="chatContainer">
+          <div class="chat-message system">
+            <div class="chat-avatar">
+              <canvas class="chat-canvas" width="28" height="28"></canvas>
+            </div>
+            <div class="chat-bubble">Hello! I'm your Cybertron AI assistant. Ask me anything about security operations.</div>
+          </div>
+        </div>
+        <div class="chat-input-bar">
+          <input type="text" id="chatInput" placeholder="Ask the AI...">
+          <button class="btn btn-primary" id="chatSend">Send</button>
+        </div>
+      </div>
+
+      <div class="panel hidden" id="panel-reports">
+        <h2>Reports</h2>
+        <div class="form-row">
+          <label>Engagement ID</label>
+          <input type="text" id="reportEngagement" placeholder="ENG-001">
+        </div>
+        <button class="btn btn-primary" id="generateReportBtn">Generate Report</button>
+        <div class="output-panel" style="margin-top: 16px;">
+          <div class="output-header">Report Preview</div>
+          <pre class="output-body" id="reportOutput">Enter an engagement ID and generate...</pre>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/static/js/cybertron.js"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+{
+  "tools": {
+    "nuclei": {
+      "repo": "projectdiscovery/nuclei",
+      "branch": "main",
+      "install_cmd": "go build ./cmd/nuclei",
+      "run_cmd": "./nuclei",
+      "category": "scanner"
+    },
+    "subfinder": {
+      "repo": "projectdiscovery/subfinder",
+      "branch": "main",
+      "install_cmd": "go build ./cmd/subfinder",
+      "run_cmd": "./subfinder",
+      "category": "recon"
+    },
+    "httpx": {
+      "repo": "projectdiscovery/httpx",
+      "branch": "main",
+      "install_cmd": "go build ./cmd/httpx",
+      "run_cmd": "./httpx",
+      "category": "recon"
+    },
+    "gau": {
+      "repo": "lc/gau",
+      "branch": "master",
+      "install_cmd": "go build",
+      "run_cmd": "./gau",
+      "category": "recon"
+    },
+    "dalfox": {
+      "repo": "hahwul/dalfox",
+      "branch": "main",
+      "install_cmd": "go build",
+      "run_cmd": "./dalfox",
+      "category": "exploit"
+    },
+    "sqlmap": {
+      "repo": "sqlmapproject/sqlmap",
+      "branch": "master",
+      "install_cmd": "pip install -r requirements.txt",
+      "run_cmd": "python3 sqlmap.py",
+      "category": "exploit"
+    },
+    "ffuf": {
+      "repo": "ffuf/ffuf",
+      "branch": "master",
+      "install_cmd": "go build",
+      "run_cmd": "./ffuf",
+      "category": "brute"
+    },
+    "amass": {
+      "repo": "OWASP/Amass",
+      "branch": "master",
+      "install_cmd": "go build ./cmd/amass",
+      "run_cmd": "./amass",
+      "category": "recon"
+    }
+  }
+}

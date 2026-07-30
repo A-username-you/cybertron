@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybertron — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a1a; --ink: #e0e0e0; --muted: #6b6b76;
+    --gold: #FFD700; --amber: #FFBF00; --cyan: #4DD0E1;
+    --navy: #1a1a3e; --bronze: #CD7F32; --card-border: #2a2a4e;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+  .login-card {
+    background: var(--navy); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 48px 40px; width: 100%; max-width: 420px;
+    text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .logo {
+    font-family: 'Press Start 2P', monospace; font-size: 18px;
+    color: var(--gold); margin-bottom: 8px; letter-spacing: 2px;
+  }
+  .version { font-size: 11px; color: var(--muted); margin-bottom: 32px; }
+  .pixel-canvas {
+    width: 120px; height: 120px; margin: 0 auto 24px;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+  }
+  label {
+    display: block; text-align: left; font-size: 11px;
+    color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  input[type="password"] {
+    width: 100%; padding: 12px 14px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--card-border); border-radius: 4px;
+    outline: none; transition: border-color 0.2s;
+  }
+  input[type="password"]:focus { border-color: var(--gold); }
+  .error { color: #ff4444; font-size: 12px; margin-top: 12px; }
+  button {
+    width: 100%; margin-top: 20px; padding: 12px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    background: var(--gold); color: var(--navy); border: none;
+    border-radius: 4px; cursor: pointer; font-weight: 600;
+    transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.9; }
+  .hint {
+    margin-top: 20px; font-size: 11px; color: var(--muted);
+    line-height: 1.6;
+  }
+  .hint code {
+    background: var(--bg); padding: 2px 6px; border-radius: 3px;
+    color: var(--cyan); font-size: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">CYBERTRON</div>
+  <div class="version">v3.0 — Unified Red/Blue Team Platform</div>
+  <canvas id="pixelCanvas" class="pixel-canvas" width="28" height="28"></canvas>
+  <form method="post" action="/login">
+    <label for="passkey">Enter Passkey</label>
+    <input type="password" id="passkey" name="passkey" placeholder="••••••••••••••••" required autofocus>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <button type="submit">Authenticate</button>
+  </form>
+  <div class="hint">
+    Generate a passkey with:<br>
+    <code>cybertron config --generate-passkey</code>
+  </div>
+</div>
+
+<script>
+function plot(ctx, x, y, color, alpha) {
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  ctx.fillRect(x, y, 1, 1);
+  ctx.globalAlpha = 1;
+}
+function rampColor(t) {
+  const stops = [[0.00,[255,215,0]],[0.35,[255,191,0]],[0.65,[77,208,225]],[1.00,[40,40,90]]];
+  for (let i=0;i<stops.length-1;i++){
+    const [t0,c0]=stops[i], [t1,c1]=stops[i+1];
+    if (t>=t0 && t<=t1){
+      const f=(t-t0)/(t1-t0);
+      const c=c0.map((v,i2)=>Math.round(v+(c1[i2]-v)*f));
+      return `rgb(${c[0]},${c[1]},${c[2]})`;
+    }
+  }
+  return 'rgb(40,40,90)';
+}
+function drawPlanet(ctx, N, ringAngle, pulse) {
+  ctx.clearRect(0,0,N,N);
+  const cx=N/2, cy=N/2, pr=N*0.2*(1+pulse*0.05);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const dx=x-cx, dy=y-cy, r=Math.sqrt(dx*dx+dy*dy);
+    if(r<=pr) plot(ctx,x,y,rampColor((r/pr)*0.6));
+  }
+  const cosA=Math.cos(ringAngle), sinA=Math.sin(ringAngle);
+  for(let a=0;a<360;a+=4){
+    const rad=(a*Math.PI)/180;
+    const ex=Math.cos(rad)*pr*1.8, ey=Math.sin(rad)*pr*0.35;
+    const rx=ex*cosA-ey*sinA, ry=ex*sinA+ey*cosA;
+    const x=Math.round(cx+rx), y=Math.round(cy+ry);
+    if(x>=0&&x<N&&y>=0&&y<N) plot(ctx,x,y,'#FFBF00');
+  }
+}
+const canvas=document.getElementById('pixelCanvas');
+const ctx=canvas.getContext('2d');
+let t=0;
+function loop(){
+  t+=0.02;
+  drawPlanet(ctx,28,t*0.6,(Math.sin(t*1.5)+1)/2);
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
