@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  cybertron:
+    build: .
+    container_name: cybertron
+    ports:
+      - "8765:8765"
+    environment:
+      - CYBERTRON_PORT=8765
+      - CYBERTRON_HOST=0.0.0.0
+      - CYBERTRON_LLM_PROVIDER=${CYBERTRON_LLM_PROVIDER:-openrouter}
+      - CYBERTRON_LLM_API_KEY=${CYBERTRON_LLM_API_KEY:-}
+      - CYBERTRON_LLM_MODEL=${CYBERTRON_LLM_MODEL:-nousresearch/hermes-3-llama-3.1-405b}
+      - NIM_API_KEY=${NIM_API_KEY:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    volumes:
+      - cybertron-data:/root/.cybertron
+      - ./configs:/app/configs:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  cybertron-data:

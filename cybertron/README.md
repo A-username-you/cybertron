@@ -1,208 +1,113 @@
-# Cybertron — Red + Blue Team Agent
+# Cybertron — Unified Security Automation Platform
 
-A unified cybersecurity agent runtime with **three interfaces**: Terminal (TUI), Desktop (GUI), and Web — all connecting to one gateway.
+> **Version 3.1.0** | The perfect Cybertron. All versions combined into one.
 
-![Cybertron](https://img.shields.io/badge/platform-Linux-blue) ![Python](https://img.shields.io/badge/python-3.10+-green)
+Cybertron is an AI-powered red/blue team security agent and automated bug bounty platform.
 
-## What's Inside
+## What's New in v3.1
 
-| Component | File | Description |
-|-----------|------|-------------|
-| **Gateway** | `gateway.py` | Async WebSocket + HTTP server. Runs the agent loop, manages sessions, handles auth. |
-| **Web UI** | `web_ui.html` | Self-contained browser UI with live pixel-art animations (Canvas). |
-| **TUI** | `tui.py` | Terminal UI using Rich. ASCII art state icons, keyboard-driven. |
-| **GUI** | `gui.py` | Desktop UI using Tkinter. Canvas-rendered pixel art, mouse + keyboard. |
-| **Launcher** | `cybertron.py` | Unified entry point: `gateway`, `tui`, `gui`, `web`. |
-
-## Architecture
-
-```
-┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-│   Web UI    │   │    TUI      │   │    GUI      │
-│  (Browser)  │   │ (Terminal)  │   │  (Desktop)  │
-└──────┬──────┘   └──────┬──────┘   └──────┬──────┘
-       │                 │                 │
-       └─────────────────┼─────────────────┘
-                         │  WebSocket + HTTP
-                         ▼
-              ┌─────────────────────┐
-              │   Cybertron Gateway   │
-              │   (FastAPI + WS)      │
-              └─────────────────────┘
-                         │
-              ┌──────────┴──────────┐
-              │   Agent Simulation    │
-              │  thinking → tool →     │
-              │  writing → result     │
-              └─────────────────────┘
-```
-
-All three UIs are **thin clients** — the agent logic lives only in the gateway.
-
-## Animated State Icons
-
-Three pixel-art icons, drawn with the same mathematical functions across all interfaces:
-
-| Icon | State | Description |
-|------|-------|-------------|
-| 🪐 **Ringed Planet** | `thinking`, `running_tool`, `awaiting_approval` | Slowly rotating rings, pulsing planet |
-| 🌀 **Spiral** | `writing` | Continuously swirling arms |
-| ⭐ **Star Burst** | `result` | One-shot explosive pop, then idle |
-
-The Web UI and GUI render these as **28×28 pixel art scaled to 140×140** using the exact same color ramp (gold → amber → teal → navy).
+- **Agent Console Web UI** — Full-featured dashboard with pixel-art animations, auth gate, chat transcript, control center, keyboard shortcuts
+- **10 AI Providers** — OpenRouter, OpenAI, Anthropic, Google Gemini, Mistral, Groq, Cohere, Azure, Ollama, NVIDIA NIM
+- **Bug Bounty Mode** — `/bb`, `/target`, `/recon`, `/brute`, `/report`, `/submit`, `/sync-h1`
+- **Tool Marketplace** — Browse and install 16 security tools from GitHub
+- **Animated State Icons** — Ringed planet (thinking), spiral (writing), star burst (result)
+- **Split-pane transcript** — Raw output side panel
+- **Streaming tokens** — Real-time AI response streaming
+- **Approval gates** — Tool execution and download modals with Y/N shortcuts
 
 ## Quick Start
 
-### 1. Install Dependencies
-
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
+
+# Start backend
+python -m cybertron gateway
+
+# Launch UIs (in new terminals with venv activated)
+python -m cybertron tui      # Terminal UI
+python -m cybertron gui      # Desktop GUI
+python -m cybertron web      # Standalone web UI
 ```
 
-Requires Python 3.10+ and these packages:
-- `fastapi` + `uvicorn` — gateway HTTP/WebSocket server
-- `websockets` — WebSocket client (all UIs)
-- `rich` — terminal rendering (TUI)
-- `tkinter` — built-in, for GUI
+Open `http://localhost:8765/` for the **Agent Console**.
 
-### 2. Start the Gateway
+## Docker
 
 ```bash
-python cybertron.py gateway
-# or
-python gateway.py
+docker-compose up --build
 ```
 
-The gateway will:
-- Bind to `127.0.0.1:8765`
-- Generate an auth token at `~/.cybertron/auth-token`
-- Print the token to console
+## AI Providers
 
-### 3. Launch a UI
+| Provider | Env Variable | Default Model |
+|----------|-------------|---------------|
+| OpenRouter | `CYBERTRON_LLM_API_KEY` | `nousresearch/hermes-3-llama-3.1-405b` |
+| OpenAI | `OPENAI_API_KEY` | `gpt-4o` |
+| Anthropic | `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-20241022` |
+| Google Gemini | `GOOGLE_API_KEY` | `gemini-1.5-pro` |
+| Mistral | `MISTRAL_API_KEY` | `mistral-large-latest` |
+| Groq | `GROQ_API_KEY` | `llama-3.1-70b-versatile` |
+| Cohere | `COHERE_API_KEY` | `command-r-plus` |
+| Azure | `AZURE_OPENAI_KEY` | `gpt-4` |
+| Ollama | `OLLAMA_API_KEY` | `llama3.1` |
+| NVIDIA NIM | `NIM_API_KEY` | `nvidia/nemotron-4-340b-instruct` |
 
-**Web UI** (open in any browser):
-```bash
-python cybertron.py web
-# Then open http://127.0.0.1:8080/web_ui.html
-```
+Set provider: `export CYBERTRON_LLM_PROVIDER=openai`
 
-**Terminal UI**:
-```bash
-python cybertron.py tui
-```
+## Slash Commands
 
-**Desktop GUI**:
-```bash
-python cybertron.py gui
-# or
-python cybertron.py desktop
-```
+| Command | Description |
+|---------|-------------|
+| `/add-tool <url> [cat]` | Install tool from GitHub |
+| `/tools` | View tool registry |
+| `/marketplace` | Browse tool marketplace |
+| `/remove-tool <id>` | Remove installed tool |
+| `/export <fmt>` | Export session (markdown/json/audit) |
+| `/dry-run` | Toggle dry-run mode |
+| `/config` | Open control center |
+| `/split` | Toggle split-pane |
+| `/bb` | Toggle bug bounty mode |
+| `/target <name>` | Set current target |
+| `/recon` | Start reconnaissance |
+| `/brute <type>` | Brute force (dirs/subdomains/params/vhosts/api/idor) |
+| `/report` | Generate report |
+| `/submit` | Submit to HackerOne |
+| `/sync-h1 <handle>` | Sync HackerOne program |
+| `/targets` | List known targets |
+| `/help` | Show commands |
 
-All UIs auto-read the auth token from `~/.cybertron/auth-token` (except the Web UI in a standalone browser, which prompts for it).
-
-## Authentication
-
-- Token is generated on first gateway start and stored at `~/.cybertron/auth-token` (mode `0600`)
-- Override with `CYBERTRON_AUTH_TOKEN` environment variable
-- Wrong token → connection rejected immediately
-- All commands gated until authenticated
-
-## Agent Lifecycle
-
-```
-IDLE → THINKING → RUNNING_TOOL → WRITING → RESULT → IDLE
-                ↑                    ↓
-         (approval gate for         (star burst)
-          exploit tools)
-```
-
-1. **Thinking** — Agent plans the approach (planet animation)
-2. **Running Tool** — Executes recon tool: `subfinder`, `httpx`, `nuclei`, `gitleaks`, `yara-scan`
-3. **Approval Gate** — Exploit tools (`sqlmap`, `xss-verify`, etc.) require explicit Y/N approval
-4. **Writing** — Synthesizes results into report (spiral animation)
-5. **Result** — Star burst animation, then back to idle
-
-## TUI Controls
+## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
-| `Enter` | Submit goal / confirm approval |
-| `S` | Toggle Server View (all sessions) |
-| `Y` / `N` | Approve / deny tool (when prompted) |
-| `Backspace` | Delete character |
-| `Ctrl+C` | Quit |
-
-## GUI Features
-
-- **Pixel-art Canvas** — Exact same 28×28 math as Web UI, rendered in Tkinter
-- **Server Toggle** — Switch between current session and all gateway sessions
-- **Approval Modal** — Popup dialog for exploit-gated tools
-- **Event Log** — Scrollable colored log with timestamps
-- **Responsive Layout** — Adapts to window resizing
-
-## Web UI Features
-
-- **Auth Gate** — Clean token entry with connection status
-- **Responsive Design** — Works on phone, tablet, desktop
-- **Real-time Animations** — 12fps Canvas rendering
-- **Session Sidebar** — Live list of all active sessions
-- **Approval Modal** — Full tool details before approval
-- **Auto-reconnect** — 3-second retry on disconnect
+| `Enter` | Send message |
+| `S` | Toggle Server view |
+| `T` | Toggle Tools registry |
+| `M` | Toggle Marketplace |
+| `P` | Toggle split-pane |
+| `C` | Control Center |
+| `Y` | Approve prompt |
+| `N` | Deny prompt |
+| `?` | Show shortcuts |
+| `/` | Focus composer |
+| `Esc` | Close overlays |
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CYBERTRON_HOST` | `127.0.0.1` | Gateway bind address |
-| `CYBERTRON_PORT` | `8765` | Gateway port |
-| `CYBERTRON_AUTH_TOKEN` | *(auto)* | Override auth token |
-| `CYBERTRON_WEB_PORT` | `8080` | Web UI server port |
-
-## File Structure
-
-```
-cybertron/
-├── gateway.py          # FastAPI + WebSocket gateway
-├── web_ui.html         # Standalone browser UI
-├── tui.py              # Rich-based terminal UI
-├── gui.py              # Tkinter desktop UI
-├── cybertron.py        # Unified launcher
-├── requirements.txt    # Python dependencies
-└── README.md           # This file
-```
-
-## Protocol
-
-WebSocket messages (JSON):
-
-**Client → Server:**
-- `session_start` — `{type, goal}`
-- `tool_call_approval` — `{type, sessionId, approved}`
-- `sessions_request` — `{type}`
-
-**Server → Client:**
-- `agent_status` — `{type, sessionId, status, detail}`
-- `sessions_snapshot` — `{type, sessions[]}`
-- `tool_call_request` — `{type, sessionId, tool, args, reason}`
-- `tool_call_result` — `{type, sessionId, result}`
-
-## Security Notes
-
-- Gateway binds to `127.0.0.1` only (not 0.0.0.0)
-- Exploit-category tools are **stubbed and hard-gated** — no payload logic without human approval
-- Auth token is 48 hex chars (24 random bytes)
-- Token file has `0600` permissions
-
-## Troubleshooting
-
-| Issue | Fix |
-|-------|-----|
-| "No auth token found" | Start the gateway first to generate one |
-| TUI crashes on startup | Ensure you're running in an interactive terminal (not piped) |
-| Web UI won't connect | Verify gateway is running and token is correct |
-| GUI shows blank window | Check that gateway is running and accessible |
-| Port 8765 in use | Set `CYBERTRON_PORT` to a different port |
+| Variable | Description |
+|----------|-------------|
+| `CYBERTRON_PORT` | Gateway port (default: 8765) |
+| `CYBERTRON_HOST` | Gateway host (default: 127.0.0.1) |
+| `CYBERTRON_AUTH_TOKEN` | Override auto-generated auth token |
+| `CYBERTRON_LLM_PROVIDER` | AI provider (see table above) |
+| `CYBERTRON_LLM_API_KEY` | API key for LLM provider |
+| `CYBERTRON_LLM_MODEL` | Model name |
+| `NIM_API_KEY` | NVIDIA NIM API key |
+| `GITHUB_TOKEN` | GitHub PAT for Tool Loader |
 
 ## License
 
-MIT — Built for red/blue team operations with safety gating.
+MIT

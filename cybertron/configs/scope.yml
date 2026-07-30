@@ -1,0 +1,8 @@
+targets:
+  - example.com
+  - api.example.com
+
+exclusions:
+  - admin.example.com
+
+rate_limit: 30

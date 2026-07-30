@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cybertron — animated state icons</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff; --ink: #14141f; --muted: #6b6b76; --card-border: #e2e2e8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'IBM Plex Mono', monospace; padding: 48px 24px 96px; }
+  .wrap { max-width: 940px; margin: 0 auto; }
+  h1.page-title { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  p.page-sub { color: var(--muted); font-size: 13px; margin: 0 0 40px; max-width: 620px; line-height: 1.6; }
+  h2.section-title { font-size: 12.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink); border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin: 0 0 24px; }
+
+  .icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 56px; }
+  .icon-card { background: #fff; border: 1px solid var(--card-border); border-radius: 6px; padding: 28px 20px 22px; display: flex; flex-direction: column; align-items: center; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; width: 140px; height: 140px; }
+  .icon-card .name { font-family: 'Press Start 2P', monospace; font-size: 9.5px; color: var(--ink); text-align: center; }
+  .icon-card .trigger { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.5; }
+  .icon-card .trigger b { color: var(--ink); }
+
+  .sim {
+    border: 1px solid var(--card-border); border-radius: 6px; padding: 32px; text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .sim canvas { width: 120px; height: 120px; margin-bottom: 16px; }
+  .sim .state-label { font-family: 'Press Start 2P', monospace; font-size: 11px; margin-bottom: 4px; }
+  .sim .state-detail { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  button.run {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 10px 20px;
+    border: 1px solid var(--ink); background: #fff; color: var(--ink); border-radius: 4px; cursor: pointer;
+  }
+  button.run:hover { background: var(--ink); color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="page-title">Cybertron — animated state icons</h1>
+  <p class="page-sub">Comet dropped. The remaining three now animate, each tied to a real agent state.
+  Top row loops continuously so you can see the motion; the panel below simulates one actual run,
+  switching icons the way the app would.</p>
+
+  <h2 class="section-title">01 — Each animation, looping</h2>
+  <div class="icon-grid">
+    <div class="icon-card">
+      <canvas id="loopPlanet" width="28" height="28"></canvas>
+      <div class="name">RINGED PLANET</div>
+      <div class="trigger">Plays while <b>agent_status: thinking</b> — rings slowly rotate, planet pulses faintly.</div>
+    </div>
+    <div class="icon-card">
+      <canvas id="loopSpiral" width="28" height="28"></canvas>
+      <div class="name">SPIRAL</div>
+      <div class="trigger">Plays while the <b>response is being written</b> out — arms swirl continuously.</div>
+    </div>
+    <div class="icon-card">
+      <canvas id="loopBurst" width="28" height="28"></canvas>
+      <div class="name">STAR BURST</div>
+      <div class="trigger">Plays once when a <b>tool result lands successfully</b> — a quick pop, then it's gone.</div>
+    </div>
+  </div>
+
+  <h2 class="section-title">02 — Simulated run</h2>
+  <div class="sim">
+    <canvas id="simCanvas" width="28" height="28"></canvas>
+    <div class="state-label" id="simLabel">IDLE</div>
+    <div class="state-detail" id="simDetail">Press run to simulate a session: thinking → writing → result.</div>
+    <button class="run" id="runBtn">Run simulation</button>
+  </div>
+</div>
+
+<script>
+function plot(ctx, x, y, color, alpha) {
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  ctx.fillRect(x, y, 1, 1);
+  ctx.globalAlpha = 1;
+}
+
+function rampColor(t) {
+  const stops = [
+    [0.00, [255, 215, 0]], [0.35, [255, 191, 0]],
+    [0.65, [77, 208, 225]], [1.00, [40, 40, 90]]
+  ];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [t0, c0] = stops[i]; const [t1, c1] = stops[i + 1];
+    if (t >= t0 && t <= t1) {
+      const f = (t - t0) / (t1 - t0);
+      const c = c0.map((v, i2) => Math.round(v + (c1[i2] - v) * f));
+      return `rgb(${c[0]},${c[1]},${c[2]})`;
+    }
+  }
+  return 'rgb(40,40,90)';
+}
+
+function drawSpiral(ctx, N, rotOffset) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, arms = 2, tightness = 2.4;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = x - cx + 0.5, dy = y - cy + 0.5;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r > N / 2) continue;
+      const theta = Math.atan2(dy, dx) + rotOffset;
+      const spiral = Math.cos(arms * theta - tightness * r);
+      const density = (spiral + 1) / 2 * (1 - r / (N / 2));
+      if (density > 0.42 || r < 1.6) plot(ctx, x, y, rampColor(Math.min(r / (N / 2), 1)));
+    }
+  }
+}
+
+function drawPlanet(ctx, N, ringAngle, pulse) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, pr = N * 0.2 * (1 + pulse * 0.05);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = x - cx, dy = y - cy;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r <= pr) plot(ctx, x, y, rampColor((r / pr) * 0.6));
+    }
+  }
+  // rotate the ring band by ringAngle: sample a rotated ellipse
+  const cosA = Math.cos(ringAngle), sinA = Math.sin(ringAngle);
+  for (let a = 0; a < 360; a += 4) {
+    const rad = (a * Math.PI) / 180;
+    const ex = Math.cos(rad) * pr * 1.8;
+    const ey = Math.sin(rad) * pr * 0.35;
+    const rx = ex * cosA - ey * sinA;
+    const ry = ex * sinA + ey * cosA;
+    const x = Math.round(cx + rx), y = Math.round(cy + ry);
+    if (x >= 0 && x < N && y >= 0 && y < N) plot(ctx, x, y, '#FFBF00');
+  }
+}
+
+function drawBurst(ctx, N, progress) {
+  ctx.clearRect(0, 0, N, N);
+  const cx = N / 2, cy = N / 2, rays = 10;
+  const maxLen = N * 0.46;
+  const len = maxLen * Math.min(progress * 2, 1);
+  const fade = progress > 0.5 ? 1 - (progress - 0.5) * 2 : 1;
+  for (let i = 0; i < rays; i++) {
+    const angle = (i / rays) * Math.PI * 2;
+    for (let d = 0; d < len; d++) {
+      const x = Math.round(cx + Math.cos(angle) * d);
+      const y = Math.round(cy + Math.sin(angle) * d);
+      if (x >= 0 && x < N && y >= 0 && y < N) plot(ctx, x, y, rampColor(d / maxLen), fade);
+    }
+  }
+  for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) plot(ctx, cx + xx, cy + yy, '#FFD700', fade);
+}
+
+// --- looping previews ---
+const loopPlanet = document.getElementById('loopPlanet').getContext('2d');
+const loopSpiral = document.getElementById('loopSpiral').getContext('2d');
+const loopBurst = document.getElementById('loopBurst').getContext('2d');
+let t = 0;
+function loop() {
+  t += 0.02;
+  drawPlanet(loopPlanet, 28, t * 0.6, (Math.sin(t * 1.5) + 1) / 2);
+  drawSpiral(loopSpiral, 28, t * 0.8);
+  drawBurst(loopBurst, 28, (t * 0.4) % 1);
+  requestAnimationFrame(loop);
+}
+loop();
+
+// --- simulated run ---
+const simCtx = document.getElementById('simCanvas').getContext('2d');
+const simLabel = document.getElementById('simLabel');
+const simDetail = document.getElementById('simDetail');
+const runBtn = document.getElementById('runBtn');
+let simRunning = false;
+let simRaf = null;
+
+function stopSim() { if (simRaf) cancelAnimationFrame(simRaf); simRaf = null; }
+
+function runSim() {
+  if (simRunning) return;
+  simRunning = true;
+  runBtn.disabled = true;
+  let phase = 'thinking';
+  let phaseStart = performance.now();
+
+  function frame(now) {
+    const elapsed = now - phaseStart;
+    if (phase === 'thinking') {
+      simLabel.textContent = 'THINKING';
+      simDetail.textContent = 'agent_status: thinking — Nemotron is reasoning about the next step.';
+      drawPlanet(simCtx, 28, elapsed * 0.003, (Math.sin(elapsed * 0.005) + 1) / 2);
+      if (elapsed > 1600) { phase = 'writing'; phaseStart = now; }
+    } else if (phase === 'writing') {
+      simLabel.textContent = 'WRITING OUTPUT';
+      simDetail.textContent = 'Streaming the response back to the transcript.';
+      drawSpiral(simCtx, 28, elapsed * 0.004);
+      if (elapsed > 1600) { phase = 'result'; phaseStart = now; }
+    } else if (phase === 'result') {
+      simLabel.textContent = 'RESULT';
+      simDetail.textContent = '[nuclei] result received — 2 medium findings.';
+      const progress = Math.min(elapsed / 700, 1);
+      drawBurst(simCtx, 28, progress);
+      if (elapsed > 900) { phase = 'idle'; phaseStart = now; }
+    } else {
+      simLabel.textContent = 'IDLE';
+      simDetail.textContent = 'Press run to simulate a session: thinking → writing → result.';
+      drawPlanet(simCtx, 28, 0, 0);
+      simRunning = false;
+      runBtn.disabled = false;
+      return;
+    }
+    simRaf = requestAnimationFrame(frame);
+  }
+  simRaf = requestAnimationFrame(frame);
+}
+
+runBtn.addEventListener('click', runSim);
+drawPlanet(simCtx, 28, 0, 0);
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cybertron"
+version = "3.0.0"
+description = "Cybertron — Unified Security Automation Platform"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Security Researcher", email = "dev@cybertron.local"}]
+keywords = ["security", "bug-bounty", "pentest", "automation", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "fastapi>=0.104", "uvicorn[standard]>=0.24", "websockets>=12.0",
+    "httpx>=0.25", "pydantic>=2.0", "jinja2>=3.1", "pyyaml>=6.0",
+    "requests>=2.31", "rich>=13.0", "structlog>=23.0", "typer>=0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-asyncio>=0.21", "black>=23.0", "ruff>=0.1"]
+
+[project.scripts]
+cybertron = "cybertron.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cybertron*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM"]
